@@ -34,6 +34,7 @@ header.mast .wrap{padding-block:18px 14px}
 nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--strip)}
 nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-block:9px}
 nav.tabs .wrap::-webkit-scrollbar{display:none}
+@media (hover:hover) and (pointer:fine){.tabs .wrap{flex-wrap:wrap;overflow-x:visible}}
 nav.tabs button{flex:0 0 auto;font:700 12.5px/1 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;padding:9px 12px;border-radius:999px;border:0;background:none;color:#dbe7fb;cursor:pointer}
 nav.tabs button[aria-selected="true"]{background:var(--gold);color:var(--onacc)}
 button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
