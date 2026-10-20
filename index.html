@@ -438,6 +438,13 @@ td.pos-m{color:#1d8a52} td.neg-m{color:#c2414b}
 .seg{display:inline-flex;background:var(--card);border-radius:999px;padding:3px;gap:2px}
 .seg button{border:0;background:none;font:800 12px/1 var(--f-ui);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:9px 13px;border-radius:999px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--navy);color:var(--gold)}
+.vrec-switch{margin:0 0 12px}.vrec{background:var(--card);border-radius:14px;padding:6px 14px 4px;margin-bottom:64px}
+.vrec-note{font-size:13px;margin:8px 0 6px}
+.vrec-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--soft)}
+.vrec-row.me .vrec-who b{color:var(--navy)}.vrec-row.me .vrec-rk{background:var(--gold);color:var(--onacc)}
+.vrec-rk{flex:0 0 28px;height:28px;border-radius:8px;background:var(--soft);display:grid;place-items:center;font-weight:800;font-size:13px}
+.vrec-who{flex:1;min-width:0;display:flex;flex-direction:column}.vrec-who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrec-who span,.vrec-wl span{font-size:12px}.vrec-wl{text-align:right;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
 .bwrap{overflow-x:auto;margin:0 -4px;padding:0 4px 6px}
 .bracket{display:grid;grid-template-columns:repeat(4,minmax(200px,1fr));gap:12px;min-width:860px}
 .bcol{display:grid;grid-template-rows:auto 1fr;gap:8px}
@@ -736,6 +743,10 @@ V.home=()=>{
     newsBox(),
     inviteCard(),
     el("div",{class:"head"},el("div",{},S.pub.odds&&S.pub.odds.week===cw&&S.pub.odds.lines?el("span",{class:"label"},"Villains Sportsbook"):null,el("h2",{},"Week "+cw+" matchups")),(()=>{const bx=S.pub["box-"+L.season+"-"+cw];return bx&&bx.live&&!bx.final?el("button",{class:"live-lab linkbtn",onclick:()=>openBox(L.season,cw,null)},el("i",{"aria-hidden":"true"}),"Live scores ›"):el("span",{class:"label"},S.pub.odds&&S.pub.odds.week===cw?(linesClosed()?"Lines closed at Sunday kickoff":"Lines update every morning"):"Seed · record")})()),
+    el("div",{class:"vrec-switch"},el("div",{class:"seg",role:"group","aria-label":"Show"},
+      el("button",{type:"button","aria-pressed":String(S.homeView!=="record"),onclick:()=>{S.homeView="games";render()}},"Matchups"),
+      el("button",{type:"button","aria-pressed":String(S.homeView==="record"),onclick:()=>{S.homeView="record";render()}},"Voting record"))),
+    S.homeView==="record"?voteRecordView():
     wk?(()=>{const pg=pd&&(pd.games||[]).find(x=>x.gotw);const isG=g=>pg&&((g.a===pg.a&&g.b===pg.b)||(g.a===pg.b&&g.b===pg.a));
       const gs=[...wk.games].sort((x,y)=>isG(y)-isG(x));
       return el("div",{class:"games"},gs.map(g=>isG(g)?el("div",{class:"gotw-home"},el("div",{class:"gotw-tag"},el("span",{},"★ Game of the Week"),el("button",{class:"linkbtn",style:"color:var(--onacc)",onclick:()=>go("picks")},"Read the preview ›")),el("b",{class:"gotw-h"},pg.title),withVote(g)):withVote(g)))})():null,
@@ -1338,6 +1349,22 @@ function gKey(g){return Math.min(g.a,g.b)+"-"+Math.max(g.a,g.b)}
 function votesLocked(){const L=S.league,cw=L.currentWeek,bx=S.pub["box-"+L.season+"-"+cw];if(bx&&(bx.live||bx.final))return true;
   const gd=S.pub.gameday;if(gd&&gd.season===L.season&&gd.week===cw){const ks=(gd.games||[]).map(x=>Date.parse(x.kick)).filter(n=>!isNaN(n));if(ks.length&&Date.now()>=Math.min(...ks))return true}return false}
 function tally(g){const k=vKey(),key=gKey(g);let a=0,b=0,mine=null;for(const d of S.votes){const p=d.picks&&d.picks[k]&&d.picks[k][key];if(p==null)continue;if(p===g.a)a++;else if(p===g.b)b++;if(d.id===S.uid)mine=p}return{a,b,mine}}
+function voteRecord(){const L=S.league,season=L.season,rows={};
+  for(const t of L.teams)rows[t.rid]={rid:t.rid,w:0,l:0,open:0,voted:false};
+  for(const d of S.votes){const m=/^team-(\d+)$/.exec(d.id||"");if(!m||!rows[+m[1]])continue;const r=rows[+m[1]];
+    for(const [k,wk] of Object.entries(d.picks||{})){const [s,w]=k.split("-").map(Number);if(s!==season)continue;const W=L.weeks.find(x=>x.week===w);
+      for(const [gk,pick] of Object.entries(wk||{})){r.voted=true;const g=W&&W.games.find(x=>gKey(x)===gk);
+        if(!g||!W.final){r.open++;continue}if(g.ap===g.bp)continue;
+        if(pick===(g.ap>g.bp?g.a:g.b))r.w++;else r.l++}}}
+  return Object.values(rows).sort((a,b)=>b.voted-a.voted||(b.w-b.l)-(a.w-a.l)||b.w-a.w||b.open-a.open)}
+function voteRecordView(){const rs=voteRecord();let rank=0,prev=null;
+  return el("div",{class:"vrec"},
+    el("p",{class:"muted vrec-note"},"Every manager’s fan-vote picks this season. A pick counts once that week’s games are final."),
+    rs.map((r,i)=>{const key=(r.w-r.l)+"/"+r.w;if(key!==prev){rank=i+1;prev=key}const n=r.w+r.l;
+      return el("div",{class:"vrec-row"+(r.rid===(S.uid&&+S.uid.slice(5))?" me":"")},
+        el("span",{class:"vrec-rk"},r.voted?String(rank):"–"),
+        el("span",{class:"vrec-who"},el("b",{},tname(r.rid)),el("span",{class:"muted"},owner(r.rid)+(r.open?" · "+r.open+" pick"+(r.open===1?"":"s")+" pending":""))),
+        el("span",{class:"vrec-wl"},el("b",{},r.w+"–"+r.l),el("span",{class:"muted"},n?Math.round(r.w/n*100)+"%":r.voted?"—":"No picks")))}))}
 function withVote(g){const c=gameCard(g,false),v=voteRow(g);if(v)c.append(v);return c}
 function voteRow(g){
   if(!S.db)return null;
