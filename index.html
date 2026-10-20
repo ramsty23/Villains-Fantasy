@@ -898,7 +898,7 @@ V.recaps=()=>{
       po.note?el("p",{class:"muted",style:"margin:0;font-size:12.5px"},po.note):null):null];
 };
 const SITE=location.origin;
-function inviteText(){return "You’re invited to the Villains Fantasy league site 🏈\n\nScores, standings, Oscar’s recaps and power rankings, lineups for every game and the trade analyzer, all in one place:\n"+SITE+"\n\nMake it an app on your phone:\n• iPhone: open the link in Safari, tap Share, then “Add to Home Screen”\n• Android: open it in Chrome, tap ⋮, then “Add to Home screen”\n\nYou’ll need a free Claude account to sign in."}
+function inviteText(){return "You’re invited to the Villains Fantasy league site 🏈\n\nScores, standings, Oscar’s recaps and power rankings, lineups for every game and the trade analyzer, all in one place:\n"+SITE+"\n\nMake it an app on your phone:\n• iPhone: open the link in Safari, tap Share, then “Add to Home Screen”\n• Android: open it in Chrome, tap ⋮, then “Add to Home screen”\n\nNo account needed. To vote, tap a matchup, pick your team and make up a PIN."}
 function inviteCard(){
   const open=S.inviteOpen;
   if(!open)return el("button",{class:"invite",onclick:()=>{S.inviteOpen=true;render()}},el("span",{class:"inv-ic","aria-hidden":"true"},"+"),el("span",{},el("b",{},"Invite your league"),el("span",{},"Send the link and get the app on your phone")),el("span",{class:"inv-go","aria-hidden":"true"},"›"));
