@@ -1351,8 +1351,10 @@ function votesLocked(){const L=S.league,cw=L.currentWeek,bx=S.pub["box-"+L.seaso
   const gd=S.pub.gameday;if(gd&&gd.season===L.season&&gd.week===cw){const ks=(gd.games||[]).map(x=>Date.parse(x.kick)).filter(n=>!isNaN(n));if(ks.length&&Date.now()>=Math.min(...ks))return true}return false}
 function tally(g){const k=vKey(),key=gKey(g);let a=0,b=0,mine=null;for(const d of S.votes){const p=d.picks&&d.picks[k]&&d.picks[k][key];if(p==null)continue;if(p===g.a)a++;else if(p===g.b)b++;if(d.id===S.uid)mine=p}return{a,b,mine}}
 function voteRecord(){const L=S.league,season=L.season,rows={};
-  for(const t of L.teams)rows[t.rid]={rid:t.rid,w:0,l:0,open:0,voted:false};
-  for(const d of S.votes){const m=/^team-(\d+)$/.exec(d.id||"");if(!m||!rows[+m[1]])continue;const r=rows[+m[1]];
+  const mk=(id,title,sub)=>rows[id]={id,title,sub,w:0,l:0,open:0,voted:false};
+  for(const t of L.teams)mk("team-"+t.rid,tname(t.rid),owner(t.rid));
+  for(const m of ((H()&&H().managers)||[]).filter(m=>m.key==="jordan"||m.key==="ryan"))mk("x-"+m.key,m.name,"Former manager");
+  for(const d of S.votes){const r=rows[d.id];if(!r)continue;
     for(const [k,wk] of Object.entries(d.picks||{})){const [s,w]=k.split("-").map(Number);if(s!==season)continue;const W=L.weeks.find(x=>x.week===w);
       for(const [gk,pick] of Object.entries(wk||{})){r.voted=true;const g=W&&W.games.find(x=>gKey(x)===gk);
         if(!g||!W.final){r.open++;continue}if(g.ap===g.bp)continue;
@@ -1360,11 +1362,11 @@ function voteRecord(){const L=S.league,season=L.season,rows={};
   return Object.values(rows).sort((a,b)=>b.voted-a.voted||(b.w-b.l)-(a.w-a.l)||b.w-a.w||b.open-a.open)}
 function voteRecordView(){const rs=voteRecord();let rank=0,prev=null;
   return el("div",{class:"vrec"},
-    el("p",{class:"muted vrec-note"},"Every manager’s fan-vote picks this season. A pick counts once that week’s games are final."),
+    el("p",{class:"muted vrec-note"},"Every manager’s fan-vote picks this season. A pick counts once that week’s games are final. Guest votes aren’t ranked."),
     rs.map((r,i)=>{const key=(r.w-r.l)+"/"+r.w;if(key!==prev){rank=i+1;prev=key}const n=r.w+r.l;
-      return el("div",{class:"vrec-row"+(r.rid===(S.uid&&+S.uid.slice(5))?" me":"")},
+      return el("div",{class:"vrec-row"+(r.id===S.uid?" me":"")},
         el("span",{class:"vrec-rk"},r.voted?String(rank):"–"),
-        el("span",{class:"vrec-who"},el("b",{},tname(r.rid)),el("span",{class:"muted"},owner(r.rid)+(r.open?" · "+r.open+" pick"+(r.open===1?"":"s")+" pending":""))),
+        el("span",{class:"vrec-who"},el("b",{},r.title),el("span",{class:"muted"},r.sub+(r.open?" · "+r.open+" pick"+(r.open===1?"":"s")+" pending":""))),
         el("span",{class:"vrec-wl"},el("b",{},r.w+"–"+r.l),el("span",{class:"muted"},n?Math.round(r.w/n*100)+"%":r.voted?"—":"No picks")))}))}
 function withVote(g){const c=gameCard(g,false),v=voteRow(g);if(v)c.append(v);return c}
 function voteRow(g){

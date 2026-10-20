@@ -6,7 +6,9 @@
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 
-  var token = lsGet(TK), rid = lsGet(RK), PUB = null, loaders = {};
+  var token = lsGet(TK), acct = lsGet(RK), PUB = null, loaders = {};
+  if (acct && /^\d+$/.test(acct)) acct = "team-" + acct; /* older sign-ins stored a team number */
+  var EXTRA = ["jordan", "ryan"];
 
   async function getPub() {
     var r = await fetch("/pub.json?t=" + Date.now(), { cache: "no-store" });
@@ -65,15 +67,24 @@
   };
 
   function teams() { return (PUB && PUB.league && PUB.league.teams) || []; }
-  function teamName(r) { var t = teams().find(function (x) { return String(x.rid) === String(r); }); return t ? t.name.trim() : "Team " + r; }
+  function mgrName(key) { var m = PUB && PUB.history && (PUB.history.managers || []).find(function (x) { return x.key === key; }); return m ? m.name : key.charAt(0).toUpperCase() + key.slice(1); }
+  function teamOf(a) { var m = /^team-(\d+)$/.exec(a || ""); return m ? teams().find(function (x) { return String(x.rid) === m[1]; }) : null; }
+  function acctName(a) {
+    if (!a) return "";
+    var t = teamOf(a); if (t) return t.name.trim();
+    if (/^team-/.test(a)) return "Team " + a.slice(5);
+    if (/^x-/.test(a)) return mgrName(a.slice(2));
+    if (/^guest-/.test(a)) return "Guest";
+    return a;
+  }
 
   var user = {
-    id: async function () { return token && rid ? "team-" + rid : null; },
+    id: async function () { return token && acct ? acct : null; },
     can: async function () { return true; }, /* anyone can vote once they sign in with their team + PIN */
     isOwner: async function () { return false; },
     profiles: async function (ids) {
       var out = {};
-      ids.forEach(function (id) { var m = /^team-(\d+)$/.exec(id); var t = m && teams().find(function (x) { return String(x.rid) === m[1]; }); out[id] = { name: t ? t.mgr : "" }; });
+      ids.forEach(function (id) { var t = teamOf(id); out[id] = { name: t ? t.mgr : /^x-/.test(id) ? mgrName(id.slice(2)) : /^guest-/.test(id) ? "Guest" : "" }; });
       return out;
     }
   };
@@ -113,8 +124,8 @@
 
   var pill = el("button", { class: "vf-pill", type: "button" });
   function drawPill() {
-    pill.textContent = token && rid ? "Signed in: " + teamName(rid) : "Sign in to vote";
-    pill.onclick = function () { token && rid ? openAccount() : openSignIn(); };
+    pill.textContent = token && acct ? "Signed in: " + acctName(acct) : "Sign in to vote";
+    pill.onclick = function () { token && acct ? openAccount() : openSignIn(); };
   }
   function mount() { document.body.appendChild(pill); drawPill(); getPub().then(drawPill).catch(function () {}); }
   if (document.body) mount(); else document.addEventListener("DOMContentLoaded", mount);
@@ -126,43 +137,53 @@
     return back;
   }
 
-  function teamSelect(id) {
-    var s = el("select", { id: id }, [el("option", { value: "", text: "Pick your team" })]);
+  function teamSelect(id, withGuest) {
+    var s = el("select", { id: id }, [el("option", { value: "", text: "Pick who you are" })]);
+    var g = el("optgroup", { label: "League teams" });
     teams().slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (t) {
-      s.appendChild(el("option", { value: String(t.rid), text: t.name.trim() + " (" + t.mgr + ")" }));
+      g.appendChild(el("option", { value: "team-" + t.rid, text: t.name.trim() + " (" + t.mgr + ")" }));
     });
+    s.appendChild(g);
+    var x = el("optgroup", { label: "Former managers" });
+    EXTRA.forEach(function (k) { x.appendChild(el("option", { value: "x-" + k, text: mgrName(k) })); });
+    s.appendChild(x);
+    if (withGuest) s.appendChild(el("optgroup", { label: "Not in the league" }, [el("option", { value: "guest", text: "Guest (no PIN needed)" })]));
     return s;
   }
 
   async function openSignIn(note) {
     if (!teams().length) { try { await getPub(); } catch (e) {} }
-    var sel = teamSelect("vf-team");
+    var sel = teamSelect("vf-team", true);
     var pin = el("input", { id: "vf-pin", type: "password", inputmode: "numeric", autocomplete: "off", maxlength: "8", placeholder: "4 to 8 numbers" });
     var msg = el("div", { class: "vf-msg", role: "status" });
     var go = el("button", { class: "vf-go", type: "button", text: "Sign in" });
+    var pinLab;
     var back = sheet([
       el("h3", { text: "Sign in to vote" }),
-      el("p", { text: note || "Pick your team and type your PIN. First time? Make up a PIN now — it becomes yours. Don't forget it." }),
-      el("label", { for: "vf-team", text: "Your team" }), sel,
-      el("label", { for: "vf-pin", text: "PIN" }), pin,
+      el("p", { text: note || "Pick who you are and type your PIN. First time? Make up a PIN now — it becomes yours. Not in the league? Pick Guest." }),
+      el("label", { for: "vf-team", text: "Who are you?" }), sel,
+      pinLab = el("label", { for: "vf-pin", text: "PIN" }), pin,
       go, msg,
       el("div", { class: "vf-row" }, [
         el("button", { class: "vf-link", type: "button", text: "Cancel", onclick: function () { back.remove(); } }),
         el("button", { class: "vf-link", type: "button", text: "Commissioner", onclick: function () { back.remove(); openAdmin(); } })
       ])
     ]);
+    function syncGuest() { var g = sel.value === "guest"; pin.hidden = g; pinLab.hidden = g; go.textContent = g ? "Vote as a guest" : "Sign in"; }
+    sel.addEventListener("change", syncGuest);
     async function submit() {
       msg.textContent = "";
-      if (!sel.value) { msg.textContent = "Pick your team first."; return; }
-      if (!/^\d{4,8}$/.test(pin.value)) { msg.textContent = "Your PIN needs to be 4 to 8 numbers."; return; }
+      var guest = sel.value === "guest";
+      if (!sel.value) { msg.textContent = "Pick who you are first."; return; }
+      if (!guest && !/^\d{4,8}$/.test(pin.value)) { msg.textContent = "Your PIN needs to be 4 to 8 numbers."; return; }
       go.disabled = true; go.textContent = "Checking…";
       try {
-        var r = await api({ action: "login", rid: sel.value, pin: pin.value });
-        lsSet(TK, r.token); lsSet(RK, String(r.rid));
+        var r = guest ? await api({ action: "guest" }) : await api({ action: "login", acct: sel.value, pin: pin.value });
+        lsSet(TK, r.token); lsSet(RK, String(r.acct));
         if (r.created) { go.textContent = "PIN saved. Loading…"; }
         location.reload();
       } catch (e) {
-        msg.textContent = e.message; go.disabled = false; go.textContent = "Sign in";
+        msg.textContent = e.message; go.disabled = false; syncGuest();
       }
     }
     go.onclick = submit;
@@ -171,8 +192,8 @@
 
   function openAccount() {
     var back = sheet([
-      el("h3", { text: teamName(rid) }),
-      el("p", { text: "You're signed in on this phone, so you can vote on every matchup." }),
+      el("h3", { text: acctName(acct) }),
+      el("p", { text: /^guest-/.test(acct) ? "You're voting as a guest on this phone. Guest votes count in the fan vote but not on the voting record." : "You're signed in on this phone, so you can vote on every matchup." }),
       el("button", { class: "vf-go", type: "button", text: "Sign out", onclick: function () { back.remove(); signOut(false); } }),
       el("div", { class: "vf-row" }, [el("button", { class: "vf-link", type: "button", text: "Close", onclick: function () { back.remove(); } })])
     ]);
@@ -180,7 +201,7 @@
 
   async function openAdmin() {
     if (!teams().length) { try { await getPub(); } catch (e) {} }
-    var sel = teamSelect("vf-rteam");
+    var sel = teamSelect("vf-rteam", false);
     var key = el("input", { id: "vf-key", type: "password", autocomplete: "off", placeholder: "Commissioner password" });
     var msg = el("div", { class: "vf-msg", role: "status" });
     var go = el("button", { class: "vf-go", type: "button", text: "Reset this team's PIN" });
@@ -194,16 +215,16 @@
     ]);
     go.onclick = async function () {
       msg.style.color = "#b3261e"; msg.textContent = "";
-      if (!sel.value) { msg.textContent = "Pick a team."; return; }
+      if (!sel.value) { msg.textContent = "Pick who to reset."; return; }
       go.disabled = true;
-      try { await api({ action: "reset", rid: sel.value, admin: key.value }); msg.style.color = "#1b7a3a"; msg.textContent = "Done. " + teamName(sel.value) + " can make a new PIN now."; }
+      try { await api({ action: "reset", acct: sel.value, admin: key.value }); msg.style.color = "#1b7a3a"; msg.textContent = "Done. " + acctName(sel.value) + " can make a new PIN now."; }
       catch (e) { msg.textContent = e.message; }
       go.disabled = false;
     };
   }
 
   function signOut(expired) {
-    lsSet(TK, null); lsSet(RK, null); token = null; rid = null;
+    lsSet(TK, null); lsSet(RK, null); token = null; acct = null;
     if (!expired) location.reload(); else drawPill();
   }
 
