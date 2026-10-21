@@ -1146,7 +1146,7 @@ function boxScore(g,D){
     el("div",{class:"bx-tot"},el("b",{class:"num"},f2(g.ap)),el("span",{},D.final?"Total":D.live?"Live":"Projected"),el("b",{class:"num",style:"text-align:right"},f2(g.bp))),
     el("button",{class:"linkbtn",onclick:()=>{S.benchOpen=!S.benchOpen;render()}},showB?"Hide bench ▲":"Show bench ▼"),
     showB?el("div",{class:"bx-benches"},el("div",{},el("span",{class:"label"},owner(g.a)+" bench · "+bsum(A.B).toFixed(1)+" pts"),bench(A.B)),el("div",{},el("span",{class:"label"},owner(g.b)+" bench · "+bsum(B.B).toFixed(1)+" pts"),bench(B.B))):null,
-    D.final?null:D.live?el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"Live points from Sleeper, updated about once an hour during games (last update "+liveTime(D.liveAt)+"). Players who haven’t played yet show 0. Final scores lock in the next morning."):el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"Projected from each starter’s Sleeper projection. Lineups refresh every morning; empty slots and players on bye count as zero."));
+    D.final?null:D.live?el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"Live points from Sleeper, refreshed every minute during games (last update "+liveTime(D.liveAt)+"). Players who haven’t played yet show 0. Final scores lock in the next morning."):el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"Projected from each starter’s Sleeper projection. Lineups refresh every morning; empty slots and players on bye count as zero."));
 }
 /* ---------- trade center ---------- */
 const SRC=[["combined","Combined (recommended)"],["fc","FantasyCalc market"],["proj","Sleeper projections"],["prod","2026 production"]];

@@ -14,7 +14,63 @@
     var r = await fetch("/pub.json?t=" + Date.now(), { cache: "no-store" });
     if (!r.ok) throw new Error("pub");
     PUB = await r.json();
+    try { await mergeLive(PUB); } catch (e) {} /* live scores are a bonus; never block the page on them */
     return PUB;
+  }
+
+  /* ---------- live scores straight from Sleeper (via /api/live) ---------- */
+  var SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX", "K", "DEF"];
+  var GAME_WINDOW = 4.5 * 3600e3; /* an NFL game is over well inside 4.5 hours of kickoff */
+  function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+  function liveWeek(p) {
+    var L = p && p.league, gd = p && p.gameday;
+    if (!L || !gd || gd.week !== L.currentWeek) return null;
+    var bx = p["box-" + L.season + "-" + L.currentWeek];
+    if (!bx || bx.final || !bx.games || !bx.games.length) return null;
+    var now = Date.now();
+    var on = (gd.games || []).some(function (g) { var k = Date.parse(g.kick); return !isNaN(k) && now >= k && now < k + GAME_WINDOW; });
+    return on ? { L: L, bx: bx, id: "box-" + L.season + "-" + L.currentWeek } : null;
+  }
+  function isLive() { return !!liveWeek(PUB); }
+  async function mergeLive(p) {
+    var w = liveWeek(p);
+    if (!w) return;
+    var r = await fetch("/api/live?week=" + w.L.currentWeek, { cache: "no-store" });
+    if (!r.ok) return;
+    var data = await r.json(), by = {};
+    (data.matchups || []).forEach(function (m) { by[m.r] = m; });
+    if (!Object.keys(by).some(function (k) { return by[k].p > 0; })) return; /* nothing has kicked off yet */
+
+    /* names, positions and NFL teams: from the stored box rows first, then the league rosters */
+    var info = {};
+    (w.L.teams || []).forEach(function (t) { (t.players || []).forEach(function (pl) { info[pl.id] = [pl.n, pl.pos, pl.t]; }); });
+    w.bx.games.forEach(function (g) {
+      Object.keys(g.lu || {}).forEach(function (rid) {
+        (g.lu[rid].S || []).forEach(function (x) { if (x[1] !== "0") info[x[1]] = [x[2], x[3], x[4]]; });
+        (g.lu[rid].B || []).forEach(function (x) { info[x[0]] = [x[1], x[2], x[3]]; });
+      });
+    });
+    function who(id) { return info[id] || [id, "", ""]; }
+    function lineup(m) {
+      var S = SLOTS.map(function (slot, i) {
+        var id = String(m.s[i] == null ? "0" : m.s[i]);
+        if (id === "0") return [slot, "0", "Empty", "", "", 0];
+        var x = who(id); return [slot, id, x[0], x[1], x[2], r2(m.sp[i])];
+      });
+      var B = Object.keys(m.pp).filter(function (id) { return m.s.indexOf(id) < 0; }).map(function (id) {
+        var x = who(id); return [id, x[0], x[1], x[2], r2(m.pp[id])];
+      }).sort(function (a, b) { return b[4] - a[4]; });
+      return { S: S, B: B };
+    }
+    var games = w.bx.games.map(function (g) {
+      var A = by[g.a], Bm = by[g.b];
+      if (!A || !Bm) return g;
+      var lu = {}; lu[g.a] = lineup(A); lu[g.b] = lineup(Bm);
+      return Object.assign({}, g, { ap: r2(A.p), bp: r2(Bm.p), lu: lu });
+    });
+    var nb = Object.assign({}, w.bx, { final: false, live: true, liveAt: data.at || new Date().toISOString(), games: games });
+    delete nb.projected;
+    p[w.id] = nb;
   }
   async function api(body) {
     var r = await fetch("/api/db", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -44,9 +100,12 @@
         }
         loaders[name] = load;
         load();
-        var iv = setInterval(function () { if (!document.hidden) load(); }, name === "pub" ? 120000 : 20000);
+        /* league data refreshes every 2 minutes, every minute while NFL games are on */
+        var iv;
+        function next() { iv = setTimeout(function () { if (stopped) return; if (!document.hidden) load(); next(); }, name !== "pub" ? 20000 : isLive() ? 60000 : 120000); }
+        next();
         document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });
-        return function () { stopped = true; clearInterval(iv); };
+        return function () { stopped = true; clearTimeout(iv); };
       }
     };
   }
