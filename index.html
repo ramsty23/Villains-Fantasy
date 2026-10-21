@@ -1377,16 +1377,22 @@ function voteRecordView(){const rs=voteRecord();let rank=0,prev=null;
         el("span",{class:"vrec-who"},el("b",{},r.title),el("span",{class:"muted"},r.sub+(r.open?" · "+r.open+" pick"+(r.open===1?"":"s")+" pending":""))),
         el("span",{class:"vrec-wl"},el("b",{},r.w+"–"+r.l),el("span",{class:"muted"},n?Math.round(r.w/n*100)+"%":r.voted?"—":"No picks")))}))}
 function withVote(g){const c=gameCard(g,false),v=voteRow(g),w=gotwRow(g);if(v)c.append(v);if(w)c.append(w);return c}
+/* Game of the week voting closes at midnight Eastern going into the day of the week's first kickoff (Wednesday night before a Thursday game) */
+function gotwClose(){const L=S.league,gd=S.pub.gameday;if(!gd||gd.season!==L.season||gd.week!==L.currentWeek)return null;const ks=(gd.games||[]).map(x=>Date.parse(x.kick)).filter(n=>!isNaN(n));if(!ks.length)return null;
+  const day=new Date(Math.min(...ks)).toLocaleDateString("en-CA",{timeZone:"America/New_York"}),guess=Date.parse(day+"T00:00:00Z");
+  const pt=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(guess)).map(x=>[x.type,x.value]));
+  const asUtc=Date.UTC(+pt.year,+pt.month-1,+pt.day,+pt.hour,+pt.minute);return guess+(guess-asUtc)}
+function gotwLocked(){if(votesLocked())return true;const c=gotwClose();return c!=null&&Date.now()>=c}
 function gotwTally(){const k=vKey(),c={};let mine=null,total=0;for(const d of S.votes){const v=d.gotw&&d.gotw[k];if(!v)continue;c[v]=(c[v]||0)+1;total++;if(d.id===S.uid)mine=v}const top=Math.max(0,...Object.values(c));return{c,mine,total,top}}
 function gotwRow(g){
   if(!S.db)return null;
-  const T=gotwTally(),key=gKey(g),lock=votesLocked(),on=T.mine===key,n=T.c[key]||0,show=T.mine!=null||lock,lead=show&&n>0&&n===T.top;
+  const T=gotwTally(),key=gKey(g),lock=gotwLocked(),on=T.mine===key,n=T.c[key]||0,show=T.mine!=null||lock,lead=show&&n>0&&n===T.top;
   return el("div",{class:"gotw"},
     el("button",{type:"button","aria-pressed":String(on),disabled:lock||S.canWrite===false||S.voteBusy,onclick:()=>castGotw(g),"aria-label":"Vote this matchup game of the week"},el("i",{"aria-hidden":"true"},on?"✓":""),on?"Your game of the week":"Game of the week"),
     el("span",{class:"gc"},show?[lead?el("b",{},(lock?"★ Game of the week · ":"★ Leading · ")):null,n+" vote"+(n===1?"":"s")]:lock?"Voting closed":!S.uid?"Sign in to vote":T.mine==null?"Pick one game":""));
 }
 async function castGotw(g){
-  if(!S.uid){if(window.vfSignIn)window.vfSignIn();return}if(S.voteBusy||votesLocked())return;
+  if(!S.uid){if(window.vfSignIn)window.vfSignIn();return}if(S.voteBusy||gotwLocked())return;
   const k=vKey(),key=gKey(g),i=S.votes.findIndex(d=>d.id===S.uid),prev=i>=0?S.votes[i]:null;
   const gotw={...(prev?.gotw||{})};if(gotw[k]===key)delete gotw[k];else gotw[k]=key;
   for(const old of Object.keys(gotw).filter(x=>!x.startsWith(S.league.season+"-")))delete gotw[old];
