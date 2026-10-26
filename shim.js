@@ -22,16 +22,22 @@
   var SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX", "K", "DEF"];
   var GAME_WINDOW = 4.5 * 3600e3; /* an NFL game is over well inside 4.5 hours of kickoff */
   function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
-  function liveWeek(p) {
+  /* inWindow=true: only while a game is on (sets the refresh pace).
+     Otherwise: any time after the week's first kickoff until the stored box is final,
+     so finished games keep showing Sleeper's scores between game windows. */
+  function liveWeek(p, inWindow) {
     var L = p && p.league, gd = p && p.gameday;
     if (!L || !gd || gd.week !== L.currentWeek) return null;
     var bx = p["box-" + L.season + "-" + L.currentWeek];
     if (!bx || bx.final || !bx.games || !bx.games.length) return null;
     var now = Date.now();
-    var on = (gd.games || []).some(function (g) { var k = Date.parse(g.kick); return !isNaN(k) && now >= k && now < k + GAME_WINDOW; });
+    var on = (gd.games || []).some(function (g) {
+      var k = Date.parse(g.kick);
+      return !isNaN(k) && now >= k && (!inWindow || now < k + GAME_WINDOW);
+    });
     return on ? { L: L, bx: bx, id: "box-" + L.season + "-" + L.currentWeek } : null;
   }
-  function isLive() { return !!liveWeek(PUB); }
+  function isLive() { return !!liveWeek(PUB, true); }
   async function mergeLive(p) {
     var w = liveWeek(p);
     if (!w) return;
