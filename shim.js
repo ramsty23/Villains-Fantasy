@@ -14,8 +14,28 @@
     var r = await fetch("/pub.json?t=" + Date.now(), { cache: "no-store" });
     if (!r.ok) throw new Error("pub");
     PUB = await r.json();
+    try { await mergeExtra(PUB); } catch (e) {} /* hand-made content that lives only on Vercel */
     try { await mergeLive(PUB); } catch (e) {} /* live scores are a bonus; never block the page on them */
     return PUB;
+  }
+
+  /* ---------- extra.json: content added on the Vercel side only ----------
+     The daily sync rebuilds pub.json from the claude.ai database, so anything added
+     straight to the repo lives in extra.json instead. Docs missing from pub.json are
+     filled in; "breaking" stories are put in front of the synced ones; "tradefix"
+     carries commissioner grade overrides (applied by the page). */
+  async function mergeExtra(p) {
+    var r = await fetch("/extra.json?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return;
+    var x = await r.json();
+    Object.keys(x).forEach(function (k) {
+      if (k === "breaking") {
+        var b = p.breaking || (p.breaking = { active: true, stories: [] });
+        var have = {}; (b.stories || []).forEach(function (s) { have[s.headline] = 1; });
+        b.stories = (x.breaking.stories || []).filter(function (s) { return !have[s.headline]; }).concat(b.stories || []);
+        b.active = true;
+      } else if (!(k in p)) p[k] = x[k];
+    });
   }
 
   /* ---------- live scores straight from Sleeper (via /api/live) ---------- */

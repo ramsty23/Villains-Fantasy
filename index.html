@@ -1282,6 +1282,9 @@ async function shareGraphic(){
   cv.toBlob(async b=>{try{const r=await S.downloads.save({filename:"villains-trade.png",data:b});if(msg)msg.textContent=r.status==="saved"?"Saved.":""}catch(e){if(msg)msg.textContent=e&&e.code==="unavailable"?"Saving isn’t available here.":""}},"image/png");
 }
 
+/* commissioner overrides for trade grades (pub/tradefix replaces matching trades by id) */
+function applyTradeFix(m){const f=m.tradefix,T=m.trades;if(!f||!T||!Array.isArray(f.trades))return;const by={};for(const t of f.trades)by[t.id]=t;
+  T.trades=T.trades.map(t=>by[t.id]||t);for(const t of f.trades)if(!T.trades.some(x=>x.id===t.id))T.trades.unshift(t);T.trades.sort((a,b)=>(b.ts||0)-(a.ts||0))}
 /* ---------- trade grader ---------- */
 const GPA={"A+":4.3,"A":4,"A−":3.7,"B+":3.3,"B":3,"B−":2.7,"C+":2.3,"C":2,"C−":1.7,"D":1,"F":0};
 function gcls(g){return "g-"+g[0]}
@@ -1628,7 +1631,7 @@ S.tab=startTab();drawTabs();render();
   S.db=db;S.user=user;S.downloads=downloads;
   if(user){try{S.uid=await user.id()}catch(e){}try{S.canWrite=await user.can("data.write")}catch(e){}}
   if(!db){S.loadErr="Sign in to claude.ai to read the Villains Gazette.";render();return}
-  db.collection("pub").onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();S.pub=m;S.league=m.league||null;if(!S.league)S.loadErr="The league data hasn’t been posted yet.";render()},e=>{S.loadErr="The league couldn’t load. Reload the page.";render()});
+  db.collection("pub").onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();applyTradeFix(m);S.pub=m;S.league=m.league||null;if(!S.league)S.loadErr="The league data hasn’t been posted yet.";render()},e=>{S.loadErr="The league couldn’t load. Reload the page.";render()});
   db.collection("votes").onSnapshot(snap=>{S.votes=snap.docs.map(d=>({id:d.id,...d.data()}));if(S.tab==="home")render()},()=>{});
   if(user){user.isOwner().then(o=>{if(o)db.collection("drafts").onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();S.drafts=m;if(S.tab==="picks")render()},()=>{})}).catch(()=>{})}
 })();
