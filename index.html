@@ -393,6 +393,13 @@ td.pos-m{color:#1d8a52} td.neg-m{color:#c2414b}
 .bk-res b{color:var(--ink)}
 .bk-st{font:800 10px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;padding:4px 6px;border-radius:4px;background:#c2414b;color:#fff}
 .bk-res.done .bk-st{background:var(--win);color:var(--card)}
+.lv-tog{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.lv-tog button{border:1px solid var(--line);background:var(--soft);color:var(--muted);font:800 11px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;padding:6px 9px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.lv-tog button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+.lv-tog button i{width:7px;height:7px;border-radius:50%;background:#c2414b}
+@media (prefers-reduced-motion:no-preference){.lv-tog button[aria-pressed="true"] i{animation:tkblink 1.4s ease-in-out infinite}}
+.lv-p{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted)}
+.bk.is-live .bk-c{box-shadow:inset 0 0 0 1.5px rgba(194,65,75,.55)}
 .lv-line{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;border:1.5px solid #c2414b;border-radius:8px;padding:7px 9px}
 .lv-line b{color:var(--ink);font-size:13.5px}
 .bk-lt{display:inline-flex;align-items:center;gap:6px;font:800 10px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:#c2414b}
@@ -700,19 +707,29 @@ function gameCard(g,final){
   const side=rid=>el("div",{class:"side"},el("span",{class:"seed",title:"Standings position"},seedOf(rid)),el("span",{class:"tn"},tname(rid)),el("span",{class:"r"},rec(team(rid))));
   const O=S.pub.odds,ln=O&&O.season===S.league.season&&O.week===S.league.currentWeek&&(O.lines||[]).find(x=>(x.a===g.a&&x.b===g.b)||(x.a===g.b&&x.b===g.a));
   if(!ln)return el("div",{class:"game"},side(g.a),el("div",{class:"vs","aria-hidden":"true"},"VS"),side(g.b));
-  const row=(rid,ou)=>{const isA=rid===ln.a,fav=ln.fav===rid,ml=isA?ln.mlA:ln.mlB;
+  /* during games the boxes show the live line; a toggle flips back to the posted (opening) line */
+  const lv=liveFor(ln),gk=gKey(g),mode=lv?((S.lineMode||{})[gk]||"live"):"open",isLive=mode==="live";
+  const D=isLive&&!lv.locked?{fav:lv.fav,spread:lv.spread,total:lv.total,mlA:lv.mlA,mlB:lv.mlB}:ln,off=isLive&&lv.locked;
+  const row=(rid,ou)=>{const isA=rid===ln.a,fav=D.fav===rid,ml=isA?D.mlA:D.mlB;
     return el("div",{class:"bk-row"},el("span",{class:"seed"},seedOf(rid)),el("div",{class:"bk-team"},el("b",{},tname(rid)),el("span",{},rec(team(rid))+" · "+owner(rid))),
-      el("span",{class:"bk-c"},el("b",{},(fav?"−":"+")+ln.spread.toFixed(1)),el("i",{},"−110")),
-      el("span",{class:"bk-c"},el("b",{},ou+" "+ln.total.toFixed(1)),el("i",{},"−110")),
-      el("span",{class:"bk-c ml"+(fav?" fav":"")},el("b",{},fmtOdds(ml))))};
+      el("span",{class:"bk-c"},el("b",{},off?"OFF":(fav?"−":"+")+D.spread.toFixed(1)),el("i",{},off?"":"−110")),
+      el("span",{class:"bk-c"},el("b",{},off?"OFF":ou+" "+D.total.toFixed(1)),el("i",{},off?"":"−110")),
+      el("span",{class:"bk-c ml"+(fav&&!off?" fav":"")},el("b",{},off?(lv.locked===rid?"WIN":"—"):fmtOdds(ml))))};
+  const setMode=m=>{S.lineMode={...(S.lineMode||{}),[gk]:m};render()};
+  const tog=lv?el("div",{class:"lv-tog",role:"group","aria-label":"Line shown"},
+    el("button",{type:"button","aria-pressed":String(isLive),onclick:()=>setMode("live")},el("i",{"aria-hidden":"true"}),"Live"),
+    el("button",{type:"button","aria-pressed":String(!isLive),onclick:()=>setMode("open")},"Opening"),
+    isLive&&!off?el("span",{class:"lv-p num"},owner(D.fav)+" "+Math.round((D.fav===ln.a?lv.pA:1-lv.pA)*100>=99.5?99:(D.fav===ln.a?lv.pA:1-lv.pA)*100)+"% to win"):off?el("span",{class:"lv-p"},"Off the board: "+owner(lv.locked)+" has it locked"):null):null;
   const moved=ln.openSpread!=null&&(ln.openFav!==ln.fav||ln.openSpread!==ln.spread||ln.openTotal!==ln.total);
   const sp=(fav,v)=>owner(fav)+" −"+Number(v).toFixed(1);
   const closed=linesClosed();
-  return el("div",{class:"bk"+(closed?" closed":"")},el("div",{class:"bk-h"},el("span",{}),el("span",{}),el("span",{},"Spread"),el("span",{},"Total"),el("span",{},"Money")),row(ln.a,"O"),row(ln.b,"U"),
-    closed?el("div",{class:"bk-move"},el("span",{class:"mv-tag shut"},"Line closed"),el("span",{},moved?"Opened "+sp(ln.openFav,ln.openSpread)+" → closed "+sp(ln.fav,ln.spread):"Closed at "+sp(ln.fav,ln.spread))):
-    moved?el("div",{class:"bk-move"},el("span",{class:"mv-tag"},"Line moved"),el("span",{},"Opened "+sp(ln.openFav,ln.openSpread)+" → now "+sp(ln.fav,ln.spread)),ln.openTotal!==ln.total?el("span",{},"Total "+ln.openTotal.toFixed(1)+" → "+ln.total.toFixed(1)):null):null,
-    closed?lineResult(ln):null);
+  return el("div",{class:"bk"+(closed&&!isLive?" closed":"")+(isLive?" is-live":"")},tog,el("div",{class:"bk-h"},el("span",{}),el("span",{}),el("span",{},"Spread"),el("span",{},"Total"),el("span",{},"Money")),row(ln.a,"O"),row(ln.b,"U"),
+    isLive?null:closed?el("div",{class:"bk-move"},el("span",{class:"mv-tag shut"},"Line closed"),el("span",{},moved?"Opened "+sp(ln.openFav,ln.openSpread)+" → closed "+sp(ln.fav,ln.spread):"Closed at "+sp(ln.fav,ln.spread))):
+    moved&&!isLive?el("div",{class:"bk-move"},el("span",{class:"mv-tag"},"Line moved"),el("span",{},"Opened "+sp(ln.openFav,ln.openSpread)+" → now "+sp(ln.fav,ln.spread)),ln.openTotal!==ln.total?el("span",{},"Total "+ln.openTotal.toFixed(1)+" → "+ln.total.toFixed(1)):null):null,
+    closed||liveNow()?lineResult(ln):null);
 }
+/* games of this week are underway (Thursday night included), even before lines close on Sunday */
+function liveNow(){const L=S.league,bx=S.pub["box-"+L.season+"-"+L.currentWeek];return !!(bx&&bx.live&&!bx.final)}
 /* lines close at the first Sunday kickoff of the week; results grade against the closing line */
 function linesClosed(){const L=S.league,gd=S.pub.gameday,bx=S.pub["box-"+L.season+"-"+L.currentWeek];if(bx&&bx.final)return true;
   if(gd&&gd.season===L.season&&gd.week===L.currentWeek){const sun=(gd.games||[]).filter(g=>{try{return new Date(g.kick).toLocaleString("en-US",{timeZone:"America/New_York",weekday:"short"})==="Sun"}catch(e){return false}}).map(g=>Date.parse(g.kick)).filter(n=>!isNaN(n));
@@ -733,31 +750,31 @@ function lineResult(ln){
     :(cov?cov+" covering":"Spread even")+" · total "+tot.toFixed(1)+" so far";
   const res=el("div",{class:"bk-res"+(done?" done":"")},el("span",{class:"bk-st"},done?"Final":"Live"),
     el("span",{class:"num"},owner(ln.a)+" "+f2(sc[ln.a])+" – "+f2(sc[ln.b])+" "+owner(ln.b)),el("b",{},txt));
-  const lv=done?null:liveLine(bg,ln.a,ln.b);
-  if(!lv)return res;
-  if(lv.locked)return [res,el("div",{class:"lv-line"},el("span",{class:"bk-lt"},"Live line"),el("b",{},"Off the board: "+owner(lv.locked)+" has it locked"))];
-  const dogL=lv.fav===ln.a?ln.b:ln.a,pf=lv.fav===ln.a?lv.pA:1-lv.pA;
-  return [res,el("div",{class:"lv-line"},el("span",{class:"bk-lt"},el("i",{"aria-hidden":"true"}),"Live line"),
-    el("b",{class:"num"},owner(lv.fav)+" −"+lv.spread.toFixed(1)),
-    el("span",{class:"num"},"Total "+lv.total.toFixed(1)),
-    el("span",{class:"num"},owner(ln.a)+" "+fmtOdds(lv.mlA)+" · "+owner(ln.b)+" "+fmtOdds(lv.mlB)),
-    el("span",{class:"num muted"},owner(lv.fav)+" "+(pf>=0.995?">99":Math.round(pf*100))+"% to win"))];
+  return res;
 }
+/* live line for a matchup while its games are on (null before kickoff or once both teams are done) */
+function liveFor(ln){
+  const L=S.league,bx=S.pub["box-"+L.season+"-"+L.currentWeek];if(!bx||!bx.live||bx.final)return null;
+  const bg=(bx.games||[]).find(x=>(x.a===ln.a&&x.b===ln.b)||(x.a===ln.b&&x.b===ln.a));if(!bg)return null;
+  if(teamDone(ln.a)&&teamDone(ln.b))return null;return liveLine(bg,ln.a,ln.b,ln)}
 /* live (in-game) line: current score + what each team's unplayed starters are projected to add */
 const LIVE_SD=24,GAME_MS=3.25*3600e3;
 function lvPhi(x){const t=1/(1+0.3275911*Math.abs(x)/Math.SQRT2),y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x/2);return 0.5*(1+(x<0?-y:y))}
 function lvAmerican(p){p=Math.min(Math.max(p*1.045,0.0005),0.97);if(p>=0.5){const v=-100*p/(1-p),st=Math.abs(v)<1000?5:50;return Math.round(v/st)*st}
   const v=100*(1-p)/p,st=v<1000?5:v<5000?50:500;return Math.min(Math.round(v/st)*st,25000)}
 function lvHalf(x){return Math.round(x*2)/2}
-function remaining(lu){const gd=S.pub.gameday,vals=VAL(),now=Date.now();if(!gd||!lu)return 0;
+function remaining(lu,full){const gd=S.pub.gameday,vals=VAL(),now=full?-Infinity:Date.now();if(!gd||!lu)return 0;
   const kick={};for(const x of gd.games||[]){const k=Date.parse(x.kick);kick[x.away]=k;kick[x.home]=k}
   let rem=0;for(const r of lu.S){if(r[1]==="0")continue;const k=kick[r[4]];if(k==null)continue;
     const proj=r[3]==="DEF"?7:((vals&&vals.players[r[1]]&&vals.players[r[1]].cw)||0);
     const left=now<k?1:Math.max(0,1-(now-k)/GAME_MS);rem+=proj*left}
   return rem}
-function liveLine(bg,a,b){
-  const ra=remaining(bg.lu&&bg.lu[a]),rb=remaining(bg.lu&&bg.lu[b]);if(ra+rb<0.5)return null;
-  const sc={[bg.a]:bg.ap,[bg.b]:bg.bp},ea=sc[a]+ra,eb=sc[b]+rb,diff=ea-eb;
+function liveLine(bg,a,b,ln){
+  const la=bg.lu&&bg.lu[a],lb=bg.lu&&bg.lu[b],ra=remaining(la),rb=remaining(lb);if(ra+rb<0.5)return null;
+  /* anchor to the sportsbook: before kickoff the live line equals the posted line; the gap between the book's
+     projection and the raw player projections (byes, empty slots) fades out as each team's players finish */
+  const adj=(lu,r,book)=>{const p0=remaining(lu,true);return book!=null&&p0>0?(book-p0)*(r/p0):0};
+  const sc={[bg.a]:bg.ap,[bg.b]:bg.bp},ea=sc[a]+ra+adj(la,ra,ln&&(ln.a===a?ln.projA:ln.projB)),eb=sc[b]+rb+adj(lb,rb,ln&&(ln.a===b?ln.projA:ln.projB)),diff=ea-eb;
   if((sc[a]>sc[b]&&rb<0.5)||(sc[b]>sc[a]&&ra<0.5))return{locked:sc[a]>sc[b]?a:b};
   const sd=LIVE_SD*Math.sqrt((ra+rb)/125),pA=lvPhi(diff/sd);
   return{fav:diff>=0?a:b,spread:Math.max(lvHalf(Math.abs(diff)),0.5),total:lvHalf(ea+eb),pA,mlA:lvAmerican(pA),mlB:lvAmerican(1-pA)}}
