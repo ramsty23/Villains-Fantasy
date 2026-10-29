@@ -460,6 +460,14 @@ td.pos-m{color:#1d8a52} td.neg-m{color:#c2414b}
 .seg{display:inline-flex;background:var(--card);border-radius:999px;padding:3px;gap:2px}
 .seg button{border:0;background:none;font:800 12px/1 var(--f-ui);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:9px 13px;border-radius:999px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--navy);color:var(--gold)}
+.ballots{background:var(--card);border-radius:14px;padding:12px 14px;display:grid;gap:10px}
+.bal-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}.bal-n{font-size:12.5px;color:var(--muted);font-weight:700}
+.bal-list{display:flex;flex-wrap:wrap;gap:6px}
+.bal{display:inline-flex;align-items:center;gap:6px;font:700 13px/1 var(--f-ui);padding:6px 9px 6px 6px;border-radius:8px;background:var(--soft);color:var(--muted)}
+.bal i{width:16px;height:16px;border-radius:4px;border:2px solid var(--muted);display:grid;place-items:center;font-style:normal;font-size:11px;line-height:1;box-sizing:border-box}
+.bal.on{background:var(--gold);color:var(--onacc)}.bal.on i{border-color:var(--onacc);background:var(--onacc);color:var(--gold)}
+.bal.mini{margin-left:8px;padding:3px 6px 3px 4px;font-size:10.5px;letter-spacing:.06em;vertical-align:1px}.bal.mini i{width:12px;height:12px;font-size:9px;border-width:1.5px}
+.gotw-own{font:700 12.5px/1.2 var(--f-ui);color:var(--muted)}
 .vrec-switch{margin:0 0 12px}.vrec{background:var(--card);border-radius:14px;padding:6px 14px 4px;margin-bottom:64px}
 .vrec-note{font-size:13px;margin:8px 0 6px}
 .vrec-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--soft)}
@@ -771,7 +779,7 @@ V.home=()=>{
     S.homeView==="record"?voteRecordView():
     wk?(()=>{const pg=pd&&(pd.games||[]).find(x=>x.gotw);const isG=g=>pg&&((g.a===pg.a&&g.b===pg.b)||(g.a===pg.b&&g.b===pg.a));
       const gs=[...wk.games].sort((x,y)=>isG(y)-isG(x));
-      return el("div",{class:"games"},gs.map(g=>isG(g)?el("div",{class:"gotw-home"},el("div",{class:"gotw-tag"},el("span",{},"★ Game of the Week"),el("button",{class:"linkbtn",style:"color:var(--onacc)",onclick:()=>go("picks")},"Read the preview ›")),el("b",{class:"gotw-h"},pg.title),withVote(g)):withVote(g)))})():null,
+      return el("div",{class:"stack"},gotwBallots(),el("div",{class:"games"},gs.map(g=>isG(g)?el("div",{class:"gotw-home"},el("div",{class:"gotw-tag"},el("span",{},"★ Game of the Week"),el("button",{class:"linkbtn",style:"color:var(--onacc)",onclick:()=>go("picks")},"Read the preview ›")),el("b",{class:"gotw-h"},pg.title),withVote(g)):withVote(g))))})():null,
     el("button",{class:"banner",onclick:()=>go("picks")},el("span",{class:"seal","aria-hidden":"true"},"W"),
       el("span",{},el("b",{},pd?"Oscar’s week "+cw+" picks are in":"Oscar’s picks drop Thursday"),el("span",{},pd?"Read his predictions for all six games":"Predictions for all six games, Thursday morning"))),
     last?el("div",{class:"head"},el("h2",{},"Week "+last.week+" finals"),el("button",{class:"linkbtn",onclick:()=>go("recaps")},"Read recaps ›")):null,
@@ -1395,7 +1403,8 @@ function voteRecord(){const L=S.league,season=L.season,rows={};
   const mk=(id,title,sub)=>rows[id]={id,title,sub,w:0,l:0,open:0,voted:false};
   for(const t of L.teams)mk("team-"+t.rid,tname(t.rid),owner(t.rid));
   for(const m of ((H()&&H().managers)||[]).filter(m=>m.key==="jordan"||m.key==="ryan"))mk("x-"+m.key,m.name,"Former manager");
-  for(const d of S.votes){const r=rows[d.id];if(!r)continue;
+  const gk=vKey();for(const r of Object.values(rows))if(r.id.startsWith("team-"))r.gotw=false;
+  for(const d of S.votes){const r=rows[d.id];if(!r)continue;if(r.gotw!=null&&d.gotw&&d.gotw[gk]&&!(selfRuleOn()&&ownGame(d.id,d.gotw[gk])))r.gotw=true;
     for(const [k,wk] of Object.entries(d.picks||{})){const [s,w]=k.split("-").map(Number);if(s!==season)continue;const W=L.weeks.find(x=>x.week===w);
       for(const [gk,pick] of Object.entries(wk||{})){r.voted=true;const g=W&&W.games.find(x=>gKey(x)===gk);
         if(!g||!W.final){r.open++;continue}if(g.ap===g.bp)continue;
@@ -1407,8 +1416,17 @@ function voteRecordView(){const rs=voteRecord();let rank=0,prev=null;
     rs.map((r,i)=>{const key=(r.w-r.l)+"/"+r.w;if(key!==prev){rank=i+1;prev=key}const n=r.w+r.l;
       return el("div",{class:"vrec-row"+(r.id===S.uid?" me":"")},
         el("span",{class:"vrec-rk"},r.voted?String(rank):"–"),
-        el("span",{class:"vrec-who"},el("b",{},r.title),el("span",{class:"muted"},r.sub+(r.open?" · "+r.open+" pick"+(r.open===1?"":"s")+" pending":""))),
+        el("span",{class:"vrec-who"},el("b",{},r.title),el("span",{class:"muted"},r.sub+(r.open?" · "+r.open+" pick"+(r.open===1?"":"s")+" pending":""),r.gotw!=null?el("span",{class:"bal mini"+(r.gotw?" on":""),title:r.gotw?"Voted for this week’s game of the week":"Hasn’t voted for game of the week yet"},el("i",{"aria-hidden":"true"},r.gotw?"✓":""),"GOTW"):null)),
         el("span",{class:"vrec-wl"},el("b",{},r.w+"–"+r.l),el("span",{class:"muted"},n?Math.round(r.w/n*100)+"%":r.voted?"—":"No picks")))}))}
+/* who has voted for this week's game of the week (managers only, not who they picked) */
+function gotwBallots(){
+  if(!S.db||!S.league)return null;const L=S.league,k=vKey(),by={};
+  for(const d of S.votes)if(d.gotw&&d.gotw[k]&&!(selfRuleOn()&&ownGame(d.id,d.gotw[k])))by[d.id]=1;
+  const ts=[...L.teams].sort((a,b)=>String(owner(a.rid)).localeCompare(String(owner(b.rid))));const n=ts.filter(t=>by["team-"+t.rid]).length;
+  return el("div",{class:"ballots"},
+    el("div",{class:"bal-h"},el("span",{class:"label"},"★ Game of the Week ballots"),el("span",{class:"bal-n"},n+" of "+ts.length+" managers voted"+(gotwLocked()?" · closed":""))),
+    el("div",{class:"bal-list"},ts.map(t=>{const v=!!by["team-"+t.rid];return el("span",{class:"bal"+(v?" on":""),"aria-label":owner(t.rid)+(v?" voted":" has not voted")},el("i",{"aria-hidden":"true"},v?"✓":""),owner(t.rid))})));
+}
 function withVote(g){const c=gameCard(g,false),v=voteRow(g),w=gotwRow(g);if(v)c.append(v);if(w)c.append(w);return c}
 /* Game of the week voting closes at midnight Eastern going into the day of the week's first kickoff (Wednesday night before a Thursday game) */
 function gotwClose(){const L=S.league,gd=S.pub.gameday;if(!gd||gd.season!==L.season||gd.week!==L.currentWeek)return null;const ks=(gd.games||[]).map(x=>Date.parse(x.kick)).filter(n=>!isNaN(n));if(!ks.length)return null;
@@ -1416,16 +1434,23 @@ function gotwClose(){const L=S.league,gd=S.pub.gameday;if(!gd||gd.season!==L.sea
   const pt=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(guess)).map(x=>[x.type,x.value]));
   const asUtc=Date.UTC(+pt.year,+pt.month-1,+pt.day,+pt.hour,+pt.minute);return guess+(guess-asUtc)}
 function gotwLocked(){if(votesLocked())return true;const c=gotwClose();return c!=null&&Date.now()>=c}
-function gotwTally(){const k=vKey(),c={};let mine=null,total=0;for(const d of S.votes){const v=d.gotw&&d.gotw[k];if(!v)continue;c[v]=(c[v]||0)+1;total++;if(d.id===S.uid)mine=v}const top=Math.max(0,...Object.values(c));return{c,mine,total,top}}
+/* managers can't vote their own game for game of the week (rule starts 2026 week 9) */
+function acctRid(id){const m=/^team-(\d+)$/.exec(String(id||""));return m?+m[1]:null}
+function ownGame(id,key){const r=acctRid(id);return r!=null&&String(key).split("-").map(Number).includes(r)}
+function selfRuleOn(){const L=S.league;return L.season>2026||(L.season===2026&&L.currentWeek>=9)}
+function gotwTally(){const k=vKey(),c={};let mine=null,total=0;for(const d of S.votes){const v=d.gotw&&d.gotw[k];if(!v)continue;if(selfRuleOn()&&ownGame(d.id,v))continue;c[v]=(c[v]||0)+1;total++;if(d.id===S.uid)mine=v}const top=Math.max(0,...Object.values(c));return{c,mine,total,top}}
 function gotwRow(g){
   if(!S.db)return null;
   const T=gotwTally(),key=gKey(g),lock=gotwLocked(),on=T.mine===key,n=T.c[key]||0,show=T.mine!=null||lock,lead=show&&n>0&&n===T.top;
+  const mineG=ownGame(S.uid,key);
+  if(mineG&&!lock)return el("div",{class:"gotw"},el("span",{class:"gotw-own"},"Your game · you can’t vote it game of the week"),el("span",{class:"gc"},show?n+" vote"+(n===1?"":"s"):"Pick another game"));
   return el("div",{class:"gotw"},
     el("button",{type:"button","aria-pressed":String(on),disabled:lock||S.canWrite===false||S.voteBusy,onclick:()=>castGotw(g),"aria-label":"Vote this matchup game of the week"},el("i",{"aria-hidden":"true"},on?"✓":""),on?"Your game of the week":"Game of the week"),
     el("span",{class:"gc"},show?[lead?el("b",{},(lock?"★ Game of the week · ":"★ Leading · ")):null,n+" vote"+(n===1?"":"s")]:lock?"Voting closed":!S.uid?"Sign in to vote":T.mine==null?"Pick one game":""));
 }
 async function castGotw(g){
   if(!S.uid){if(window.vfSignIn)window.vfSignIn();return}if(S.voteBusy||gotwLocked())return;
+  if(ownGame(S.uid,gKey(g)))return;
   const k=vKey(),key=gKey(g),i=S.votes.findIndex(d=>d.id===S.uid),prev=i>=0?S.votes[i]:null;
   const gotw={...(prev?.gotw||{})};if(gotw[k]===key)delete gotw[k];else gotw[k]=key;
   for(const old of Object.keys(gotw).filter(x=>!x.startsWith(S.league.season+"-")))delete gotw[old];

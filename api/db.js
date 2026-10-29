@@ -114,6 +114,14 @@ module.exports = async (req, res) => {
       const data = b.data && typeof b.data === "object" ? b.data : null;
       if (!data) return fail(res, 400, "invalid_argument", "Nothing to save.");
       data.uid = acct;
+      // Managers can't vote their own matchup for game of the week (from 2026 week 9 on): drop any such vote.
+      const own = /^team-(\d+)$/.exec(acct);
+      if (col === "votes" && own && data.gotw && typeof data.gotw === "object") {
+        for (const [wk, key] of Object.entries(data.gotw)) {
+          const [s, w] = String(wk).split("-").map(Number);
+          if ((s > 2026 || (s === 2026 && w >= 9)) && String(key).split("-").map(Number).includes(+own[1])) delete data.gotw[wk];
+        }
+      }
       const json = JSON.stringify(data);
       if (json.length > 30000) return fail(res, 413, "quota_exceeded", "That's too much to save at once.");
       await redis("HSET", "vf:col:" + col, acct, json);
