@@ -176,6 +176,13 @@ td.pos-m{color:#1d8a52} td.neg-m{color:#c2414b}
 .nitem h4{margin:0;font:800 16px/1.2 var(--f-disp);text-transform:uppercase}.nitem p{margin:0;font-size:14.5px}
 .mchip{justify-self:start;font:800 10.5px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;background:var(--gold);color:var(--onacc);padding:5px 8px;border-radius:999px}
 .parlay-hero{background:var(--card);border-radius:12px;padding:16px;display:grid;gap:2px;justify-items:center;text-align:center}
+.plegs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:8px}
+.pleg{background:var(--card);border-radius:12px;padding:12px;display:grid;gap:6px;align-content:start}
+.pleg p{margin:0;font-size:14px;line-height:1.4}
+.pl-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.pl-top b{font-size:16px}
+.pl-tag{margin-left:auto;font:900 10.5px/1 var(--f-ui);letter-spacing:.1em;text-transform:uppercase;padding:5px 7px;border-radius:4px;background:var(--gold);color:var(--navy)}
+.pleg.golden{box-shadow:inset 0 0 0 2px var(--gold)}
+.pleg.danger .pl-tag{background:#c2414b;color:#fff}.pleg.danger{box-shadow:inset 0 0 0 2px #c2414b}
 .parlay-hero b{font:800 17px var(--f-disp);text-transform:uppercase}.parlay-hero .big{font:900 44px/1.05 var(--f-disp);color:var(--win)}
 .res{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-weight:900;font-size:13px}
 .res.hit{background:#1d8a52;color:#fff}.res.miss{background:#c2414b;color:#fff}
@@ -998,7 +1005,18 @@ function predDoc(p,week,draft){
   const c=p.cover;
   return [c?el("div",{class:"cover"},img(c.image,c.headline,"cover-art")||(draft?el("div",{class:"art-slot cover-slot"},"Cover art goes here"):null),el("div",{class:"cover-txt",style:"padding-bottom:14px"},el("span",{class:"label",style:"color:#9fd2f5"},"Week "+week+" predictions"),el("h2",{},c.headline),c.dek?el("p",{},c.dek):null)):null,
     p.intro?el("div",{class:"prose"},paras(p.intro)):null,
-    ...(p.games||[]).map(g=>predGame(g,week,draft))];
+    p.parlay?el("div",{class:"chips jumpbar"},el("button",{onclick:()=>jump("pgames")},"Games"),el("button",{onclick:()=>jump("parlay")},"TD parlay")):null,
+    el("div",{id:"pgames",class:"stack"},(p.games||[]).map(g=>predGame(g,week,draft))),
+    p.parlay?predParlay(p.parlay):null];
+}
+function predParlay(pl){
+  return el("div",{id:"parlay",class:"stack"},
+    el("div",{class:"head"},el("h2",{},"Oscar’s TD parlay"),el("span",{class:"label"},pl.picks.length+" legs · anytime TD")),
+    el("div",{class:"parlay-hero"},el("b",{},pl.headline),pl.intro?el("span",{},pl.intro):null),
+    el("div",{class:"plegs"},pl.picks.map(([m,player,why,tag])=>el("div",{class:"pleg"+(tag?" "+tag:"")},
+      el("div",{class:"pl-top"},el("span",{class:"mchip"},nick(m)),el("b",{},player),tag?el("span",{class:"pl-tag"},tag==="golden"?"Golden leg":"Danger leg"):null),
+      why?el("p",{},why):null))),
+    pl.sign?el("div",{class:"verdict"},el("span",{class:"label"},"Oscar signs the slip"),el("p",{},pl.sign)):null);
 }
 V.picks=()=>{
   const dk=S.drafts&&Object.keys(S.drafts).filter(k=>k.startsWith("pred-")).sort().pop();
