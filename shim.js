@@ -231,7 +231,7 @@
     s.appendChild(g);
     var x = el("optgroup", { label: "Former managers" });
     EXTRA.forEach(function (k) { x.appendChild(el("option", { value: "x-" + k, text: mgrName(k) })); });
-    if (!withGuest) s.appendChild(x); /* former managers are view-only: not offered at sign-in, still listed for PIN resets */
+    s.appendChild(x);
     if (false && withGuest) s.appendChild(el("optgroup", { label: "Not in the league" }, [el("option", { value: "guest", text: "Guest (no PIN needed)" })]));
     return s;
   }
@@ -278,7 +278,7 @@
   function openAccount() {
     var back = sheet([
       el("h3", { text: acctName(acct) }),
-      el("p", { text: /^guest-/.test(acct) ? "You're signed in as a guest. Guests can follow along, but only current league managers can vote." : "You're signed in on this phone, so you can vote on every matchup." }),
+      el("p", { text: /^guest-/.test(acct) ? "You're signed in as a guest. Guests can follow along, but only league managers can vote." : "You're signed in on this phone, so you can vote on every matchup." }),
       el("button", { class: "vf-go", type: "button", text: "Sign out", onclick: function () { back.remove(); signOut(false); } }),
       el("div", { class: "vf-row" }, [el("button", { class: "vf-link", type: "button", text: "Close", onclick: function () { back.remove(); } })])
     ]);

@@ -1403,6 +1403,7 @@ function voteRecord(){const L=S.league,season=L.season,rows={};
   const mk=(id,title,sub)=>rows[id]={id,title,sub,w:0,l:0,open:0,voted:false};
   for(const t of L.teams)mk("team-"+t.rid,tname(t.rid),owner(t.rid));
   const gk=vKey();for(const r of Object.values(rows))if(r.id.startsWith("team-"))r.gotw=false;
+  for(const m of ((H()&&H().managers)||[]).filter(m=>m.key==="jordan"||m.key==="ryan"))mk("x-"+m.key,m.name,"Former manager");
   for(const d of S.votes){const r=rows[d.id];if(!r)continue;if(r.gotw!=null&&d.gotw&&d.gotw[gk]&&!(selfRuleOn()&&ownGame(d.id,d.gotw[gk])))r.gotw=true;
     for(const [k,wk] of Object.entries(d.picks||{})){const [s,w]=k.split("-").map(Number);if(s!==season)continue;const W=L.weeks.find(x=>x.week===w);
       for(const [gk,pick] of Object.entries(wk||{})){r.voted=true;const g=W&&W.games.find(x=>gKey(x)===gk);
@@ -1411,7 +1412,7 @@ function voteRecord(){const L=S.league,season=L.season,rows={};
   return Object.values(rows).sort((a,b)=>b.voted-a.voted||(b.w-b.l)-(a.w-a.l)||b.w-a.w||b.open-a.open)}
 function voteRecordView(){const rs=voteRecord();let rank=0,prev=null;
   return el("div",{class:"vrec"},
-    el("p",{class:"muted vrec-note"},"Every manager’s fan-vote picks this season. A pick counts once that week’s games are final. Only current managers can vote."),
+    el("p",{class:"muted vrec-note"},"Every manager’s fan-vote picks this season. A pick counts once that week’s games are final. Guests can’t vote, and only current managers vote for game of the week."),
     rs.map((r,i)=>{const key=(r.w-r.l)+"/"+r.w;if(key!==prev){rank=i+1;prev=key}const n=r.w+r.l;
       return el("div",{class:"vrec-row"+(r.id===S.uid?" me":"")},
         el("span",{class:"vrec-rk"},r.voted?String(rank):"–"),
@@ -1437,11 +1438,12 @@ function gotwLocked(){if(votesLocked())return true;const c=gotwClose();return c!
 function acctRid(id){const m=/^team-(\d+)$/.exec(String(id||""));return m?+m[1]:null}
 function ownGame(id,key){const r=acctRid(id);return r!=null&&String(key).split("-").map(Number).includes(r)}
 function selfRuleOn(){const L=S.league;return L.season>2026||(L.season===2026&&L.currentWeek>=9)}
-function gotwTally(){const k=vKey(),c={};let mine=null,total=0;for(const d of S.votes){const v=d.gotw&&d.gotw[k];if(!v)continue;if(selfRuleOn()&&ownGame(d.id,v))continue;c[v]=(c[v]||0)+1;total++;if(d.id===S.uid)mine=v}const top=Math.max(0,...Object.values(c));return{c,mine,total,top}}
+function gotwTally(){const k=vKey(),c={};let mine=null,total=0;for(const d of S.votes){const v=d.gotw&&d.gotw[k];if(!v)continue;if(!/^team-/.test(d.id))continue;if(selfRuleOn()&&ownGame(d.id,v))continue;c[v]=(c[v]||0)+1;total++;if(d.id===S.uid)mine=v}const top=Math.max(0,...Object.values(c));return{c,mine,total,top}}
 function gotwRow(g){
   if(!S.db)return null;
   const T=gotwTally(),key=gKey(g),lock=gotwLocked(),on=T.mine===key,n=T.c[key]||0,show=T.mine!=null||lock,lead=show&&n>0&&n===T.top;
   const mineG=ownGame(S.uid,key);
+  if(/^x-/.test(String(S.uid||"")))return el("div",{class:"gotw"},el("span",{class:"gotw-own"},"Only current managers vote for game of the week"),el("span",{class:"gc"},show||lock?n+" vote"+(n===1?"":"s"):""));
   if(mineG&&!lock)return el("div",{class:"gotw"},el("span",{class:"gotw-own"},"Your game · you can’t vote it game of the week"),el("span",{class:"gc"},show?n+" vote"+(n===1?"":"s"):"Pick another game"));
   return el("div",{class:"gotw"},
     el("button",{type:"button","aria-pressed":String(on),disabled:lock||S.canWrite===false||S.voteBusy,onclick:()=>castGotw(g),"aria-label":"Vote this matchup game of the week"},el("i",{"aria-hidden":"true"},on?"✓":""),on?"Your game of the week":"Game of the week"),
@@ -1449,7 +1451,7 @@ function gotwRow(g){
 }
 async function castGotw(g){
   if(!S.uid){if(window.vfSignIn)window.vfSignIn();return}if(S.voteBusy||gotwLocked())return;
-  if(ownGame(S.uid,gKey(g)))return;
+  if(ownGame(S.uid,gKey(g))||!/^team-/.test(String(S.uid)))return;
   const k=vKey(),key=gKey(g),i=S.votes.findIndex(d=>d.id===S.uid),prev=i>=0?S.votes[i]:null;
   const gotw={...(prev?.gotw||{})};if(gotw[k]===key)delete gotw[k];else gotw[k]=key;
   for(const old of Object.keys(gotw).filter(x=>!x.startsWith(S.league.season+"-")))delete gotw[old];
@@ -1653,10 +1655,10 @@ S.tab=startTab();drawTabs();render();
   const C=window.claude;if(!C||!C.use){S.loadErr="Open this page on claude.ai to load the league.";render();return}
   const [db,user,downloads]=await Promise.all([C.use("db"),C.use("user"),C.use("downloads")]);
   S.db=db;S.user=user;S.downloads=downloads;
-  if(user){try{S.uid=await user.id()}catch(e){}try{S.canWrite=await user.can("data.write")}catch(e){}if(S.uid&&!/^team-/.test(String(S.uid)))S.canWrite=false}
+  if(user){try{S.uid=await user.id()}catch(e){}try{S.canWrite=await user.can("data.write")}catch(e){}if(/^guest-/.test(String(S.uid||"")))S.canWrite=false}
   if(!db){S.loadErr="Sign in to claude.ai to read the Villains Gazette.";render();return}
   db.collection("pub").onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();applyTradeFix(m);S.pub=m;S.league=m.league||null;if(!S.league)S.loadErr="The league data hasn’t been posted yet.";render()},e=>{S.loadErr="The league couldn’t load. Reload the page.";render()});
-  db.collection("votes").onSnapshot(snap=>{S.votes=snap.docs.map(d=>({id:d.id,...d.data()})).filter(d=>/^team-/.test(d.id));/* only current managers vote; guests and former managers are view-only */if(S.tab==="home")render()},()=>{});
+  db.collection("votes").onSnapshot(snap=>{S.votes=snap.docs.map(d=>({id:d.id,...d.data()})).filter(d=>!/^guest-/.test(d.id));/* guests are view-only; former managers pick winners but not game of the week */if(S.tab==="home")render()},()=>{});
   if(user){user.isOwner().then(o=>{if(o)db.collection("drafts").onSnapshot(snap=>{const m={};for(const d of snap.docs)m[d.id]=d.data();S.drafts=m;if(S.tab==="picks")render()},()=>{})}).catch(()=>{})}
 })();
 </script>

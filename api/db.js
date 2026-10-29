@@ -110,11 +110,13 @@ module.exports = async (req, res) => {
       if (!acct) return fail(res, 401, "unauthenticated", "Sign in again to vote.");
       const [col, id, extra] = String(b.path || "").split("/");
       if (!COLLECTIONS.includes(col) || id !== acct || extra !== undefined) return fail(res, 403, "invalid_argument", "You can only save your own picks.");
-      if (!acct.startsWith("team-")) return fail(res, 403, "invalid_argument", "Only current league managers can vote or post. Guests and former managers can follow along.");
+      if (acct.startsWith("guest-")) return fail(res, 403, "invalid_argument", "Guests can follow along, but only league managers can vote or post.");
       const data = b.data && typeof b.data === "object" ? b.data : null;
       if (!data) return fail(res, 400, "invalid_argument", "Nothing to save.");
       data.uid = acct;
       // Managers can't vote their own matchup for game of the week (from 2026 week 9 on): drop any such vote.
+      // Former managers can pick winners but not vote for game of the week.
+      if (col === "votes" && acct.startsWith("x-") && data.gotw) data.gotw = {};
       const own = /^team-(\d+)$/.exec(acct);
       if (col === "votes" && own && data.gotw && typeof data.gotw === "object") {
         for (const [wk, key] of Object.entries(data.gotw)) {
