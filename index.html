@@ -69,7 +69,8 @@ h3{font:800 19px/1.2 var(--f-disp);margin:0;text-wrap:balance}
 .tbl{overflow-x:auto;border-radius:12px;background:var(--card)}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
 table.wide{min-width:520px}
-table.std td,table.std th{padding:9px 5px;font-size:13px}table.std th{font-size:10px}
+table.std td,table.std th{padding:9px 5px;font-size:13px}
+.th-sort{all:unset;cursor:pointer;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;white-space:nowrap}.th-sort:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.th-sort:not(.on){opacity:.85;text-decoration:underline dotted;text-underline-offset:3px}table.std th{font-size:10px}
 @media (max-width:460px){table.std th:nth-child(6),table.std td:nth-child(6){display:none}}
 th{background:var(--navy);color:var(--gold);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:10px 8px;text-align:right;white-space:nowrap}
 td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -1507,24 +1508,32 @@ function allGames(){
 }
 /* all-time standings: regular-season W–L, points for and against, by season or all together */
 function standingsTable(){
-  const sel=S.stdSeason||"all",gs=allGames().filter(g=>g.k==="reg"&&g.a&&g.b&&g.ap!=null&&g.bp!=null);
+  const mode=S.stdMode||"reg",isPO=g=>g.k==="post"&&!/toilet/i.test(g.lab||"");
+  const gs=allGames().filter(g=>g.a&&g.b&&(mode==="reg"?g.k==="reg":mode==="post"?isPO(g):g.k==="reg"||isPO(g))&&((g.ap!=null&&g.bp!=null)||g.win));
   const seasons=[...new Set(gs.map(g=>g.season))].sort((a,b)=>b-a);
+  let sel=S.stdSeason||"all";if(sel!=="all"&&!seasons.includes(sel))sel="all";
   const rows={};const row=k=>rows[k]||(rows[k]={k,w:0,l:0,t:0,pf:0,pa:0,n:0});
   for(const g of gs){if(sel!=="all"&&g.season!==sel)continue;
-    for(const [me,mp,tp] of [[g.a,g.ap,g.bp],[g.b,g.bp,g.ap]]){const r=row(me);r.n++;r.pf+=mp;r.pa+=tp;if(mp>tp)r.w++;else if(mp<tp)r.l++;else r.t++}}
-  const list=Object.values(rows).sort((a,b)=>(b.w-b.l)-(a.w-a.l)||b.pf-a.pf);
+    for(const [me,mp,tp,side] of [[g.a,g.ap,g.bp,"a"],[g.b,g.bp,g.ap,"b"]]){const r=row(me);r.n++;if(mp!=null&&tp!=null){r.pf+=mp;r.pa+=tp;r.sn=(r.sn||0)+1}
+      const won=g.win?g.win===side:mp>tp,tie=!g.win&&mp===tp;if(tie)r.t++;else if(won)r.w++;else r.l++}}
+  const rec=(a,b)=>mode==="post"?(b.w-a.w)||(a.l-b.l)||b.pf-a.pf:(b.w-b.l)-(a.w-a.l)||b.pf-a.pf;
+  const srt=S.stdSort||{k:"rec",dir:1},val={pf:r=>r.sn?r.pf:-1e9,pa:r=>r.sn?r.pa:-1e9,diff:r=>r.sn?r.pf-r.pa:-1e9};
+  const list=Object.values(rows).sort((a,b)=>{let c=srt.k==="name"?String(mname(a.k)).localeCompare(String(mname(b.k))):srt.k==="rec"?rec(a,b):(val[srt.k](b)-val[srt.k](a))||rec(a,b);return c*srt.dir});
+  const sortBy=k=>{S.stdSort={k,dir:srt.k===k?-srt.dir:1};render()};
+  const TH=[["#",null],["Manager","name"],["W–L","rec"],["PF","pf"],["PA","pa"],["+/−","diff"]];
   const act=k=>{const m=(H().managers||[]).find(x=>x.key===k);return !m||m.active!==false};
   const f=n=>n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const chip=(v,lab)=>el("button",{"aria-pressed":String(sel===v),onclick:()=>{S.stdSeason=v;render()}},lab);
   return el("div",{style:"display:grid;gap:8px"},
     el("h3",{},"All-time standings"),
+    el("div",{class:"seg",role:"group","aria-label":"Games"},[["reg","Regular season"],["post","Playoffs"],["both","Combined"]].map(([v,l])=>el("button",{type:"button","aria-pressed":String(mode===v),onclick:()=>{S.stdMode=v;render()}},l))),
     el("div",{class:"chips"},chip("all","All-time"),seasons.map(y=>chip(y,String(y)))),
-    el("div",{class:"tbl"},el("table",{class:"std"},el("thead",{},el("tr",{},["#","Manager","W–L","PF","PA","+/−"].map(x=>el("th",{scope:"col"},x)))),
+    el("div",{class:"tbl"},el("table",{class:"std"},el("thead",{},el("tr",{},TH.map(([lab,k])=>k?el("th",{scope:"col","aria-sort":srt.k===k?(srt.dir===1?"descending":"ascending"):"none"},el("button",{type:"button",class:"th-sort"+(srt.k===k?" on":""),onclick:()=>sortBy(k)},lab,el("span",{"aria-hidden":"true"},srt.k===k?(srt.dir===1?(k==="name"?" ▲":" ▼"):(k==="name"?" ▼":" ▲")):""))):el("th",{scope:"col"},lab)))),
       el("tbody",{},list.map((r,i)=>{const d=r.pf-r.pa;return el("tr",{},el("td",{},i+1),
         el("td",{class:"tm"},el("button",{class:"linkbtn",style:"font:800 14px var(--f-ui);text-transform:none;letter-spacing:0;color:inherit;padding:0",onclick:()=>openMgr(r.k)},mname(r.k)),act(r.k)?null:el("span",{class:"muted",style:"font-size:11.5px;margin-left:6px"},"former")),
-        el("td",{},r.w+"–"+r.l+(r.t?"–"+r.t:"")),el("td",{},f(r.pf)),el("td",{},f(r.pa)),
-        el("td",{style:"color:"+(d>=0?"var(--win)":"#c2414b")+";font-weight:700"},(d>=0?"+":"−")+f(Math.abs(d))))})))),
-    el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"Regular-season games only, 2025 on (2024 wasn’t played on Sleeper, so it has no scores). Updates every week once the games are final."));
+        el("td",{},r.w+"–"+r.l+(r.t?"–"+r.t:"")),el("td",{},r.sn?f(r.pf):"—"),el("td",{},r.sn?f(r.pa):"—"),
+        el("td",{style:"color:"+(d>=0?"var(--win)":"#c2414b")+";font-weight:700"},r.sn?(d>=0?"+":"−")+f(Math.abs(d)):"—"))})))),
+    el("p",{class:"muted",style:"margin:0;font-size:12.5px"},mode==="reg"?"Regular-season games from 2025 on (2024 wasn’t played on Sleeper, so it has no scores). Updates every week once the games are final.":"Playoffs count the quarterfinals, semifinals and championship (not the toilet bowl). 2024 playoff wins and losses are included, but that season has no scores, so it adds nothing to PF and PA."));
 }
 function statsFor(key){
   const gs=allGames(),st={reg:[0,0],post:[0,0],pf:0,pa:0,n:0,best:null,seasons:new Set(),h2h:{},h2hPost:{}};
