@@ -650,7 +650,7 @@ footer{font-size:12px;color:var(--muted);padding-block:6px 30px}
 
 <script src="/shim.js"></script>
 <script>
-const TABS=[["home","This week"],["standings","Standings"],["waivers","Waiver wire"],["matchups","Matchups"],["gameday","Game day"],["tourney","In-season tournament"],["rankings","Power rankings"],["recaps","Recaps"],["picks","Predictions"],["trade","Trade center"],["history","Awards / History"]];
+const TABS=[["home","This week"],["standings","Standings"],["waivers","Waiver wire"],["matchups","Matchups"],["gameday","Game day"],["tourney","In-season tournament"],["rankings","Power rankings"],["picks","Predictions"],["recaps","Recaps"],["trade","Trade center"],["history","Awards / History"]];
 const S={tab:"home",votes:[],voteBusy:false,arch:{},mgr:null,league:null,pub:{},talk:[],db:null,user:null,uid:null,canWrite:null,sample:null,profiles:{},sel:{},trade:{a:null,b:null,ga:new Set(),gb:new Set(),src:"combined"},oscarText:"",oscarBusy:false,recapWeek:null,rankWeek:null,predWeek:null};
 const $=s=>document.querySelector(s);
 function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(k,v===true?"":v)}for(const k of kids.flat()){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(String(k)))}return e}
@@ -665,7 +665,7 @@ const ICON={home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-
 const BAR=[["home","Home","home"],["standings","Table","standings"],["rankings","Oscar","oscar"],["matchups","Games","matchups"],["trade","Trade","trade"]];
 function drawTabs(){const w=$("#tabs");w.replaceChildren(...TABS.map(([id,lab])=>el("button",{role:"tab",id:"tab-"+id,"aria-selected":String(S.tab===id),onclick:()=>{if(id==="history"){S.histView=null;S.mgr=null}go(id)}},lab)));
   const sel=w.querySelector('[aria-selected="true"]');if(sel)sel.scrollIntoView({block:"nearest",inline:"nearest"});
-  const oscarTabs=["rankings","recaps","picks"];
+  const oscarTabs=["rankings","picks","recaps"];
   $("#bar").replaceChildren(...BAR.map(([id,lab,ic])=>{const on=S.tab===id||(id==="rankings"&&oscarTabs.includes(S.tab));const b=el("button",{onclick:()=>go(id),"aria-current":on?"page":false});b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[ic]+'</svg>';b.append(lab);return b}))}
 function go(id){S.tab=id;try{history.replaceState(null,"","#"+id)}catch(e){}drawTabs();render();try{localStorage.setItem("vf-tab",id)}catch(e){}window.scrollTo({top:0})}
 const ALIAS={awards:"history",cabinet:"history",talk:"home",grader:"trade",weather:"gameday"};
