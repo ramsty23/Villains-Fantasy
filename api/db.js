@@ -110,7 +110,7 @@ module.exports = async (req, res) => {
       if (!acct) return fail(res, 401, "unauthenticated", "Sign in again to vote.");
       const [col, id, extra] = String(b.path || "").split("/");
       if (!COLLECTIONS.includes(col) || id !== acct || extra !== undefined) return fail(res, 403, "invalid_argument", "You can only save your own picks.");
-      if (col === "talk" && acct.startsWith("guest-")) return fail(res, 403, "invalid_argument", "Guests can vote but can't post.");
+      if (!acct.startsWith("team-")) return fail(res, 403, "invalid_argument", "Only current league managers can vote or post. Guests and former managers can follow along.");
       const data = b.data && typeof b.data === "object" ? b.data : null;
       if (!data) return fail(res, 400, "invalid_argument", "Nothing to save.");
       data.uid = acct;
