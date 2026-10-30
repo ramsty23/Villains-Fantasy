@@ -72,6 +72,7 @@ table.wide{min-width:520px}
 table.std td,table.std th{padding:9px 5px;font-size:13px}
 .th-sort{all:unset;cursor:pointer;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;white-space:nowrap}.th-sort:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.th-sort:not(.on){opacity:.85;text-decoration:underline dotted;text-underline-offset:3px}table.std th{font-size:10px}
 @media (max-width:460px){table.std th:nth-child(6),table.std td:nth-child(6){display:none}}
+@media (max-width:460px){table.std.bet th:nth-child(6),table.std.bet td:nth-child(6){display:table-cell}table.std.bet th:nth-child(4),table.std.bet td:nth-child(4){display:none}}
 th{background:var(--navy);color:var(--gold);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:10px 8px;text-align:right;white-space:nowrap}
 td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 th:nth-child(2),td:nth-child(2){text-align:left}
@@ -398,7 +399,8 @@ td.pos-m{color:#1d8a52} td.neg-m{color:#c2414b}
 .lv-tog button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
 .lv-tog button i{width:7px;height:7px;border-radius:50%;background:#c2414b}
 @media (prefers-reduced-motion:no-preference){.lv-tog button[aria-pressed="true"] i{animation:tkblink 1.4s ease-in-out infinite}}
-.lv-tog .lv-rec{margin-left:auto;background:none;border-color:transparent;color:var(--royal)}
+.lv-tog .lv-rec{margin-left:auto;background:var(--gold);border-color:var(--gold);color:var(--onacc);box-shadow:0 1px 3px rgba(0,0,0,.25);padding:7px 12px}
+.lv-tog .lv-rec:hover{background:var(--amber);border-color:var(--amber)}
 .lv-p{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted)}
 .bk.is-live .bk-c{box-shadow:inset 0 0 0 1.5px rgba(194,65,75,.55)}
 .lv-line{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;border:1.5px solid #c2414b;border-radius:8px;padding:7px 9px}
@@ -1560,12 +1562,12 @@ function closingLines(){const out=[],L=S.league,H=S.pub.linehist||{};
   const O=S.pub.odds;if(O&&O.season===L.season&&O.lines&&!out.some(x=>x.season===O.season&&x.week===O.week))out.push({season:O.season,week:O.week,lines:O.lines});
   return out}
 function betStats(){
-  const L=S.league,rows={},row=k=>rows[k]||(rows[k]={k,w:0,l:0,p:0,o:0,u:0,op:0,n:0});const r26=((H()&&H().rosters)||{})[String(L.season)]||{};
+  const L=S.league,rows={},row=k=>rows[k]||(rows[k]={k,w:0,l:0,p:0,o:0,u:0,op:0,n:0,fw:0,fl:0,fp:0,dw:0,dl:0,dp:0});const r26=((H()&&H().rosters)||{})[String(L.season)]||{};
   for(const wk of closingLines()){if(wk.season!==L.season)continue;const W=L.weeks.find(x=>x.week===wk.week&&x.final);if(!W)continue;
     for(const ln of wk.lines){const g=W.games.find(x=>(x.a===ln.a&&x.b===ln.b)||(x.a===ln.b&&x.b===ln.a));if(!g)continue;
       const sc={[g.a]:g.ap,[g.b]:g.bp},dog=ln.fav===ln.a?ln.b:ln.a,m=sc[ln.fav]-sc[dog],tot=sc[ln.a]+sc[ln.b];
       for(const rid of [ln.a,ln.b]){const r=row(r26[rid]||("rid"+rid));r.n++;
-        if(m===ln.spread)r.p++;else if((m>ln.spread)===(rid===ln.fav))r.w++;else r.l++;
+        const f=rid===ln.fav;if(m===ln.spread){r.p++;r[f?"fp":"dp"]++}else if((m>ln.spread)===f){r.w++;r[f?"fw":"dw"]++}else{r.l++;r[f?"fl":"dl"]++}
         if(tot>ln.total)r.o++;else if(tot<ln.total)r.u++;else r.op++}}}
   return rows}
 function openBetting(){S.histView=null;S.mgr=null;go("history");setTimeout(()=>{const e=document.getElementById("betting");if(!e)return;const t=document.getElementById("tabs"),cover=t?Math.max(0,t.getBoundingClientRect().bottom):0;
@@ -1577,16 +1579,17 @@ function bettingTable(){
   const val={ats:r=>pct(r)*1000+r.w,over:r=>r.o-r.u,name:null};
   const list=list0.sort((a,b)=>(srt.k==="name"?String(mname(a.k)).localeCompare(String(mname(b.k))):(val[srt.k](b)-val[srt.k](a))||(pct(b)-pct(a)))*srt.dir);
   const sortBy=k=>{S.betSort={k,dir:srt.k===k?-srt.dir:1};render()};
-  const TH=[["#",null],["Manager","name"],["ATS","ats"],["Cover",null],["O–U","over"]];
+  const TH=[["#",null],["Manager","name"],["ATS","ats"],["Cover",null],["As fav",null],["As dog",null],["O–U","over"]];const rec=(w,l,p)=>w+l+p?w+"–"+l+(p?"–"+p:""):"—";
   const wks=[...new Set(closingLines().filter(x=>x.season===L.season&&L.weeks.some(w=>w.week===x.week&&w.final)).map(x=>x.week))].sort((a,b)=>a-b);
   return el("div",{id:"betting",style:"display:grid;gap:8px;scroll-margin-top:12px"},
     el("h3",{},"Betting records"),
-    el("div",{class:"tbl"},el("table",{class:"std"},el("thead",{},el("tr",{},TH.map(([lab,k])=>k?el("th",{scope:"col"},el("button",{type:"button",class:"th-sort"+(srt.k===k?" on":""),onclick:()=>sortBy(k)},lab,el("span",{"aria-hidden":"true"},srt.k===k?(srt.dir===1?(k==="name"?" ▲":" ▼"):(k==="name"?" ▼":" ▲")):""))):el("th",{scope:"col"},lab)))),
+    el("div",{class:"tbl"},el("table",{class:"std bet"},el("thead",{},el("tr",{},TH.map(([lab,k])=>k?el("th",{scope:"col"},el("button",{type:"button",class:"th-sort"+(srt.k===k?" on":""),onclick:()=>sortBy(k)},lab,el("span",{"aria-hidden":"true"},srt.k===k?(srt.dir===1?(k==="name"?" ▲":" ▼"):(k==="name"?" ▼":" ▲")):""))):el("th",{scope:"col"},lab)))),
       el("tbody",{},list.map((r,i)=>el("tr",{},el("td",{},i+1),
         el("td",{class:"tm"},el("button",{class:"linkbtn",style:"font:800 14px var(--f-ui);text-transform:none;letter-spacing:0;color:inherit;padding:0",onclick:()=>openMgr(r.k)},mname(r.k))),
         el("td",{},r.w+"–"+r.l+(r.p?"–"+r.p:"")),el("td",{},r.w+r.l?Math.round(pct(r)*100)+"%":"—"),
+        el("td",{},rec(r.fw,r.fl,r.fp)),el("td",{},rec(r.dw,r.dl,r.dp)),
         el("td",{},r.o+"–"+r.u+(r.op?"–"+r.op:""))))))),
-    el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"ATS = against the spread. Graded against each week’s closing line (locked at Sunday’s first kickoff). ATS is the manager’s team covering or not; O–U is how often their game’s combined score went over or under the total. The sportsbook opened in Week 7"+(wks.length?", so this covers week"+(wks.length>1?"s ":" ")+wks.join(", "):"")+"."));
+    el("p",{class:"muted",style:"margin:0;font-size:12.5px"},"ATS = against the spread. Graded against each week’s closing line (locked at Sunday’s first kickoff). ATS is the manager’s team covering or not, split into games as the favorite and as the underdog; O–U is how often their game’s combined score went over or under the total. The sportsbook opened in Week 7"+(wks.length?", so this covers week"+(wks.length>1?"s ":" ")+wks.join(", "):"")+"."));
 }
 function statsFor(key){
   const gs=allGames(),st={reg:[0,0],post:[0,0],pf:0,pa:0,n:0,best:null,seasons:new Set(),h2h:{},h2hPost:{}};
