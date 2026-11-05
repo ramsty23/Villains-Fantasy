@@ -618,6 +618,7 @@ tr.rowlink{cursor:pointer}tr.rowlink:hover td{background:var(--soft)}
 @media (prefers-reduced-motion:no-preference){.bk-live i{animation:blink 1.2s ease-in-out infinite}}
 .bk-when{font-size:12px;color:#ffe3e6;font-weight:700}
 .breaking .bk-h{display:block;font:900 24px/1.1 var(--f-disp);text-transform:uppercase;text-wrap:pretty}
+.breaking .bk-img{display:block;width:100%;max-width:520px;height:auto;border-radius:10px;margin:4px 0}
 .bk-b{font-size:14.5px;line-height:1.4;color:#fff3f4}
 .bk-cta{font:800 12px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-top:2px}
 /* phone tab bar */
@@ -1024,6 +1025,7 @@ function breakingBanner(b){
   return el("button",{class:"breaking",onclick:open},
     el("div",{class:"bk-top"},el("span",{class:"bk-live"},el("i",{"aria-hidden":"true"}),b.kicker||"Breaking news"),b.at?el("span",{class:"bk-when"},ago(b.at)):null),
     el("b",{class:"bk-h"},b.historic?medal(b.historic):null,b.headline),
+    b.image?el("img",{class:"bk-img",src:b.image,alt:b.headline,loading:"lazy"}):null,
     b.body?el("span",{class:"bk-b"},b.body):null,
     el("span",{class:"bk-cta"},(b.cta||"Read Oscar’s grades")+" ›"))}
 /* home news box */
