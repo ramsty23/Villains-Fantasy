@@ -998,7 +998,9 @@ function inviteCard(){
 }
 /* breaking news */
 function breakingBanners(){const d=S.pub.breaking;if(!d||!d.active)return[];const list=Array.isArray(d.stories)?d.stories:[d];
-  return list.filter(b=>b&&b.headline&&!(b.expires&&Date.now()>Date.parse(b.expires))).map(breakingBanner)}
+  /* the Game of the Week story always leads the breaking news (commissioner's rule) */
+  const isG=b=>/game of the week/i.test((b.kicker||"")+" "+b.headline);
+  return list.filter(b=>b&&b.headline&&!(b.expires&&Date.now()>Date.parse(b.expires))).map((b,i)=>[b,i]).sort((x,y)=>(isG(y[0])-isG(x[0]))||(x[1]-y[1])).map(x=>breakingBanner(x[0]))}
 function bkStep(tr){return tr.children.length>1?tr.children[1].offsetLeft-tr.children[0].offsetLeft:tr.clientWidth||1}
 function bkGo(tr,i,smooth){const n=tr.children.length;S.bkIdx=((i%n)+n)%n;const rm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
   tr.scrollTo({left:S.bkIdx*bkStep(tr),behavior:smooth&&!rm?"smooth":"auto"});bkSync()}
