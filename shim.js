@@ -34,6 +34,11 @@
         var have = {}; (b.stories || []).forEach(function (s) { have[s.headline] = 1; });
         b.stories = (x.breaking.stories || []).filter(function (s) { return !have[s.headline]; }).concat(b.stories || []);
         b.active = true;
+      } else if (k === "tradefix") {
+        /* grades added on the Vercel side win over the synced ones with the same trade id */
+        var f = p.tradefix || (p.tradefix = { trades: [] });
+        var mine = {}; (x.tradefix.trades || []).forEach(function (t) { mine[t.id] = 1; });
+        f.trades = (x.tradefix.trades || []).concat((f.trades || []).filter(function (t) { return !mine[t.id]; }));
       } else if (!(k in p)) p[k] = x[k];
     });
   }
