@@ -39,6 +39,11 @@
         var f = p.tradefix || (p.tradefix = { trades: [] });
         var mine = {}; (x.tradefix.trades || []).forEach(function (t) { mine[t.id] = 1; });
         f.trades = (x.tradefix.trades || []).concat((f.trades || []).filter(function (t) { return !mine[t.id]; }));
+      } else if (k === "practice-staff") {
+        /* reporter changes made on the Vercel side replace the synced ones, team by team */
+        var ps = p["practice-staff"] || (p["practice-staff"] = { reporters: {} });
+        ps.reporters = ps.reporters || {};
+        Object.keys(x[k].reporters || {}).forEach(function (rid) { ps.reporters[rid] = x[k].reporters[rid]; });
       } else if (!(k in p)) p[k] = x[k];
     });
   }
