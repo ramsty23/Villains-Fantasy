@@ -39,6 +39,15 @@
         var f = p.tradefix || (p.tradefix = { trades: [] });
         var mine = {}; (x.tradefix.trades || []).forEach(function (t) { mine[t.id] = 1; });
         f.trades = (x.tradefix.trades || []).concat((f.trades || []).filter(function (t) { return !mine[t.id]; }));
+      } else if (k === "odds") {
+        /* betting lines opened on the Vercel side for a newer week replace the synced lines (futures stay) */
+        var o = p.odds || (p.odds = {});
+        if (x.odds.season === o.season && (x.odds.week > (o.week || 0) || (x.odds.week === o.week && !(o.lines || []).length)))
+          ["week", "lines", "lineMethod", "linesSet", "lineupsAsOf"].forEach(function (f) { if (f in x.odds) o[f] = x.odds[f]; });
+      } else if (k === "leagueWeek") {
+        /* the commissioner moved the site to a new week before the claude.ai data caught up */
+        var L = p.league;
+        if (L && x.leagueWeek > L.currentWeek && (L.weeks || []).some(function (w) { return w.week === x.leagueWeek; })) L.currentWeek = x.leagueWeek;
       } else if (k === "practice-staff") {
         /* reporter changes made on the Vercel side replace the synced ones, team by team */
         var ps = p["practice-staff"] || (p["practice-staff"] = { reporters: {} });
