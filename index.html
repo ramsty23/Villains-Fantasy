@@ -1474,11 +1474,12 @@ function gotwBallots(){
     el("div",{class:"bal-list"},ts.map(t=>{const v=!!by["team-"+t.rid];return el("span",{class:"bal"+(v?" on":""),"aria-label":owner(t.rid)+(v?" voted":" has not voted")},el("i",{"aria-hidden":"true"},v?"✓":""),owner(t.rid))})));
 }
 function withVote(g){const c=gameCard(g,false),v=voteRow(g),w=gotwRow(g);if(v)c.append(v);if(w)c.append(w);return c}
-/* Game of the week voting closes at midnight Eastern going into the day of the week's first kickoff (Wednesday night before a Thursday game) */
+/* Game of the week voting closes Thursday at 5 pm Eastern of the game week (or at the first kickoff if a game comes earlier) */
 function gotwClose(){const L=S.league,gd=S.pub.gameday;if(!gd||gd.season!==L.season||gd.week!==L.currentWeek)return null;const ks=(gd.games||[]).map(x=>Date.parse(x.kick)).filter(n=>!isNaN(n));if(!ks.length)return null;
-  const day=new Date(Math.min(...ks)).toLocaleDateString("en-CA",{timeZone:"America/New_York"}),guess=Date.parse(day+"T00:00:00Z");
+  const first=Math.min(...ks),day=new Date(first).toLocaleDateString("en-CA",{timeZone:"America/New_York"}),back=(new Date(day+"T12:00:00Z").getUTCDay()+3)%7;if(back>4)return first;
+  const guess=Date.parse(day+"T17:00:00Z")-back*864e5;
   const pt=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(guess)).map(x=>[x.type,x.value]));
-  const asUtc=Date.UTC(+pt.year,+pt.month-1,+pt.day,+pt.hour,+pt.minute);return guess+(guess-asUtc)}
+  const asUtc=Date.UTC(+pt.year,+pt.month-1,+pt.day,+pt.hour,+pt.minute);return Math.min(first,guess+(guess-asUtc))}
 function gotwLocked(){if(votesLocked())return true;const c=gotwClose();return c!=null&&Date.now()>=c}
 /* managers can't vote their own game for game of the week (rule starts 2026 week 9) */
 function acctRid(id){const m=/^team-(\d+)$/.exec(String(id||""));return m?+m[1]:null}
