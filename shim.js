@@ -42,7 +42,7 @@
       } else if (k === "odds") {
         /* betting lines opened on the Vercel side for a newer week replace the synced lines (futures stay) */
         var o = p.odds || (p.odds = {});
-        if (x.odds.season === o.season && (x.odds.week > (o.week || 0) || (x.odds.week === o.week && !(o.lines || []).length)))
+        if (x.odds.season === o.season && (x.odds.week > (o.week || 0) || (x.odds.week === o.week && (!(o.lines || []).length || String(x.odds.linesSet || "") > String(o.linesSet || "")))))
           ["week", "lines", "lineMethod", "linesSet", "lineupsAsOf"].forEach(function (f) { if (f in x.odds) o[f] = x.odds[f]; });
       } else if (k === "leagueWeek") {
         /* the commissioner moved the site to a new week before the claude.ai data caught up */
