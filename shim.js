@@ -57,6 +57,10 @@
         ps.reporters = ps.reporters || {};
         Object.keys(x[k].reporters || {}).forEach(function (rid) { ps.reporters[rid] = x[k].reporters[rid]; });
       } else if (!(k in p)) p[k] = x[k];
+      else if (/^(recap|pred|rank)-\d/.test(k) && p[k] && typeof p[k] === "object" && x[k] && typeof x[k] === "object") {
+        /* fields added on the Vercel side (e.g. a parlay results section) fill in what the synced copy lacks */
+        Object.keys(x[k]).forEach(function (f) { if (!(f in p[k])) p[k][f] = x[k][f]; });
+      }
     });
   }
 
