@@ -671,6 +671,22 @@ footer{font-size:12px;color:var(--muted);padding-block:6px 30px}
 .ist.Out{background:#c2414b;color:#fff}.ist.Doubtful{background:#e06a2c;color:#fff}.ist.Questionable{background:var(--gold);color:var(--onacc)}.ist.IR{background:#33415e;color:#fff}
 .pr-jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.pr-jump::-webkit-scrollbar{display:none}.pr-jump button{flex:0 0 auto}
 .pr-staff{background:var(--navy);color:#fff;border-radius:14px;padding:14px 16px;display:grid;gap:4px}.pr-staff .label{color:var(--gold)}.pr-staff p{margin:0;color:#c8d6ee;font-size:14px}
+/* rivalry week */
+html:root.rivalry{--head:#1c0606;--strip:#7d0d0d;--gold:#ff7a1a;--amber:#ff3b1f;--badge:#7d0d0d;--win:#c4161c;--head-mut:#f3b9a2;--powder:#ff3b1f;--onacc:#1c0606}
+html:root.rivalry body{background:var(--bg)}
+.rivalry .stripe{height:8px;background:linear-gradient(90deg,#ff3b1f,#ff9a1f,#ffd23f,#ff9a1f,#ff3b1f);background-size:200% 100%;animation:rvflame 2.4s linear infinite}
+@keyframes rvflame{to{background-position:200% 0}}
+@media (prefers-reduced-motion:reduce){.rivalry .stripe{animation:none}}
+.rv-banner{background:linear-gradient(90deg,#1c0606,#7d0d0d 50%,#1c0606);color:#fff;text-align:center;padding:10px 12px;font:900 15px/1.2 var(--f-disp);letter-spacing:.14em;text-transform:uppercase}
+.rv-banner span{color:#ffb347;letter-spacing:.06em;font-weight:700;font-size:12px;display:block;margin-top:3px;text-transform:none}
+.rv-tag{display:inline-block;background:#c4161c;color:#fff;font:800 10.5px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:999px}
+.tot{background:var(--card);border-radius:14px;padding:14px;display:grid;gap:10px;border-top:4px solid #c4161c}
+.tot-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tot-h b{font:900 19px/1.15 var(--f-disp)}
+.tot-g{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 10px;align-items:center;font-size:14px}
+.tot-g .l{text-align:right;font-weight:700}.tot-g .r{font-weight:700}.tot-g .m{color:var(--muted);font:800 11px/1.2 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;text-align:center}
+.tot-beef{font-size:13px;color:var(--muted)}.tot-beef i{font-style:normal;color:#ff3b1f;letter-spacing:2px}
+.tot p{margin:0}
 </style>
 
 <div class="ticker" id="ticker" role="region" aria-label="Live scores" hidden></div>
@@ -680,6 +696,7 @@ footer{font-size:12px;color:var(--muted);padding-block:6px 30px}
   <p>12 teams · 7 make the playoffs · Oscar Wilde, editor</p>
 </div></header>
 <div class="stripe" aria-hidden="true"></div>
+<div class="rv-banner" id="rv-banner" hidden></div>
 <nav class="tabs" aria-label="Sections"><div class="wrap" role="tablist" id="tabs"></div></nav>
 
 <main><div class="wrap" id="view"><div class="empty">Loading the league…</div></div></main>
@@ -1205,8 +1222,24 @@ V.matchups=()=>{
   const games=[...D.games];
   const head=[el("div",{class:"head"},el("div",{},el("span",{class:"label"},e.season+" season"),el("h2",{},"Week "+e.week+" matchups")),D.final?el("span",{class:"label"},"Final"):D.live?el("span",{class:"live-lab"},el("i",{"aria-hidden":"true"}),"Live · updated "+liveTime(D.liveAt)):el("span",{class:"label"},"Projected · lineups as of "+(D.asOf||""))),
     el("div",{class:"chips wkchips",role:"group","aria-label":"Week"},wk.map(x=>el("button",{"aria-pressed":String(x.week===e.week),onclick:()=>pick(x)},"Wk "+x.week+(S.pub[x.id].final?"":" · live"))))];
-  return [...head,el("div",{class:"stack"},games.map(g=>muCard(g,D,e)))];
+  const RV=S.pub.rivalry,rv=RV&&RV.season===e.season&&RV.week===e.week;
+  return [...head,el("div",{class:"stack"},games.map(g=>rv?el("div",{class:"stack"},taleOfTape(g,RV),muCard(g,D,e)):muCard(g,D,e)))];
 };
+function taleOfTape(g,RV){
+  const r=(RV.games||[]).find(x=>(x.a===g.a&&x.b===g.b)||(x.a===g.b&&x.b===g.a));if(!r)return null;
+  const A=team(g.a),B=team(g.b);if(!A||!B)return null;
+  const rk=x=>{const R=latestRank();const en=R&&(R.entries||[]).find(q=>q.mgr===mgrKey(x));return en?"#"+en.rank:"–"};
+  const ln=((S.pub.odds||{}).lines||[]).find(l=>(l.a===g.a&&l.b===g.b)||(l.a===g.b&&l.b===g.a));
+  const lineTxt=ln?(owner(ln.fav)+" −"+ln.spread):"–";
+  const row=(m,va,vb)=>[el("span",{class:"l"},va),el("span",{class:"m"},m),el("span",{class:"r"},vb)];
+  return el("article",{class:"tot"},
+    el("div",{class:"tot-h"},el("b",{},r.name||"Rivalry game"),el("span",{class:"rv-tag"},"Tale of the tape")),
+    el("div",{class:"tot-g"},row("",owner(g.a),owner(g.b)),row("Record",rec(A),rec(B)),row("Points for",f2(A.pf),f2(B.pf)),row("Power rank",rk(g.a),rk(g.b))),
+    el("div",{class:"tot-beef"},"Beef meter ",el("i",{},"\u{1F525}".repeat(Math.max(1,Math.min(5,r.beef||3)))),"  ·  Line: "+lineTxt),
+    r.why?el("p",{class:"prose"},rich(r.why)):null);
+}
+function latestRank(){const ks=Object.keys(S.pub).filter(k=>/^rank-\d+-\d+$/.test(k)).sort((a,b)=>{const[,sa,wa]=a.split("-").map(Number),[,sb,wb]=b.split("-").map(Number);return sa-sb||wa-wb});return ks.length?S.pub[ks[ks.length-1]]:null}
+function mgrKey(rid){return H()&&H().rosters[String(S.league.season)]?.[rid]}
 function muCard(g,D,e){
   const open=S.mu&&S.mu.season===e.season&&S.mu.week===e.week&&(S.mu.open===g.a||S.mu.open===g.b);
   const aw=g.ap>g.bp,bw=g.bp>g.ap,fin=D.final;
@@ -1782,6 +1815,9 @@ function render(){
   drawTicker();
   const fx=document.activeElement&&document.activeElement.id,val=fx&&document.activeElement.value;
   $("#mast-week").textContent="2026 season · Week "+S.league.currentWeek;
+  const RV=S.pub.rivalry,rvOn=!!(RV&&RV.week===S.league.currentWeek&&RV.season===S.league.season);
+  document.documentElement.classList.toggle("rivalry",rvOn);
+  const rb=$("#rv-banner");if(rb){rb.hidden=!rvOn;if(rvOn)rb.replaceChildren("Rivalry Week",el("span",{},RV.tagline||("Week "+RV.week+" · every game is personal")))}
   $("#foot").textContent="Scores from Sleeper, updated "+S.league.updated+". Stories by Oscar Wilde, the league’s AI editor.";
   const G=grpOf(S.tab),sub=G[2].length>1?el("div",{class:"seg tv-seg",role:"group","aria-label":G[1]},G[2].map(k=>el("button",{"aria-pressed":String(k===S.tab),onclick:()=>go(k)},SUBLAB[k]||k))):null;
   v.replaceChildren(el("section",{role:"tabpanel","aria-labelledby":"tab-"+G[0]},sub,V[S.tab]()),S.roster?rosterSheet():"");document.body.style.overflow=S.roster?"hidden":"";
