@@ -1754,8 +1754,8 @@ function drawTicker(){
 const INJ_LAB={Out:"Out",Doubtful:"Doubtful",Questionable:"Questionable",IR:"Injured reserve",PUP:"PUP list",Sus:"Suspended"};
 V.practice=()=>{
   const info=pickEd("practice");
-  if(!info)return[oscarHead("Practice reports","From the practice field"),el("div",{class:"empty"},"Every team’s beat reporter files from the practice field on Tuesdays and Fridays.")];
-  const D=info.doc,eds=D.editions||{},keys=["tue","fri"].filter(k=>eds[k]);
+  if(!info)return[oscarHead("Practice reports","From the practice field"),el("div",{class:"empty"},"Every team’s beat reporter files from the practice field on Wednesdays and Fridays.")];
+  const D=info.doc,eds=D.editions||{},keys=["tue","wed","fri"].filter(k=>eds[k]);
   const ek=keys.includes(S.prEd)?S.prEd:keys[keys.length-1],E=eds[ek];
   const staff=(S.pub["practice-staff"]||{}).reporters||{};
   const reps=[...E.reports].sort((a,b)=>seedOf(a.rid)-seedOf(b.rid));
@@ -1773,7 +1773,7 @@ V.practice=()=>{
     keys.length>1?el("div",{class:"seg tv-seg",role:"group","aria-label":"Edition"},keys.map(k=>el("button",{"aria-pressed":String(k===ek),onclick:()=>{S.prEd=k;render()}},eds[k].label||k))):null,
     el("div",{class:"chips pr-jump jumpbar"},reps.map(r=>el("button",{onclick:()=>jump("pr-"+r.rid)},owner(r.rid)))),
     el("div",{class:"stack"},reps.map(card)),
-    el("div",{class:"pr-staff"},el("span",{class:"label"},"About the reporters"),el("p",{},"Every team has its own beat reporter. They file on Tuesdays and Fridays. The practice-field stories are made up for fun; the injury reports come from Sleeper’s real injury data."))];
+    el("div",{class:"pr-staff"},el("span",{class:"label"},"About the reporters"),el("p",{},"Every team has its own beat reporter. They file on Wednesdays and Fridays. The practice-field stories are made up for fun; the injury reports come from Sleeper’s real injury data."))];
 };
 /* ---------- render ---------- */
 function render(){

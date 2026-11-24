@@ -44,6 +44,9 @@
         var o = p.odds || (p.odds = {});
         if (x.odds.season === o.season && (x.odds.week > (o.week || 0) || (x.odds.week === o.week && (!(o.lines || []).length || String(x.odds.linesSet || "") > String(o.linesSet || "")))))
           ["week", "lines", "lineMethod", "linesSet", "lineupsAsOf"].forEach(function (f) { if (f in x.odds) o[f] = x.odds[f]; });
+      } else if (/^practice-\d/.test(k) && p[k] && p[k].editions && x[k].editions) {
+        /* practice editions filed on the Vercel side (e.g. Wednesday/Friday) are added to the synced week */
+        Object.keys(x[k].editions).forEach(function (e) { if (!p[k].editions[e]) p[k].editions[e] = x[k].editions[e]; });
       } else if (k === "leagueWeek") {
         /* the commissioner moved the site to a new week before the claude.ai data caught up */
         var L = p.league;
